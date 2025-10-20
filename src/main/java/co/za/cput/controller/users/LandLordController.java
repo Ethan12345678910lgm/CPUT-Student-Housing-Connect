@@ -13,7 +13,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping({"/Landlord", "/api/landlords"})
+@RequestMapping({"/api/landlords", "/HouseConnect/Landlord"})
 public class LandLordController {
 
     private final LandLordServiceImpl landLordService;
@@ -49,7 +49,6 @@ public class LandLordController {
     @GetMapping("/getAllLandlords")
     public ResponseEntity<List<Landlord>> getAllLandlords() {
         List<Landlord> landlords = landLordService.getAllLandlords();
-        if (landlords == null || landlords.isEmpty()) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(landlords);
     }
 
