@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 public class UserAuthenticationServiceImpl implements IUserAuthenticationService {
@@ -41,5 +43,33 @@ public class UserAuthenticationServiceImpl implements IUserAuthenticationService
     @Override
     public void delete(Long Id) {
         userAuthenticationRepository.deleteById(Id);
+    }
+
+    @Override
+    public boolean existsByUsernameOrEmail(String usernameOrEmail) {
+        Optional<String> normalized = normalize(usernameOrEmail);
+        return normalized.filter(value -> userAuthenticationRepository
+                        .existsByUsernameIgnoreCaseOrContact_EmailIgnoreCase(value, value))
+                .isPresent();
+    }
+
+    @Override
+    public Optional<UserAuthentication> findByUsernameOrEmail(String usernameOrEmail) {
+        return normalize(usernameOrEmail)
+                .flatMap(value -> userAuthenticationRepository
+                        .findByUsernameIgnoreCaseOrContact_EmailIgnoreCase(value, value));
+    }
+
+    private Optional<String> normalize(String usernameOrEmail) {
+        if (usernameOrEmail == null) {
+            return Optional.empty();
+        }
+
+        String trimmed = usernameOrEmail.trim();
+        if (trimmed.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(trimmed.toLowerCase(Locale.ROOT));
     }
 }
