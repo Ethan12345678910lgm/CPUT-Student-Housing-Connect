@@ -23,7 +23,7 @@ class UserAuthenticationControllerTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
-    private static final String BASE_URL = "http://localhost:8080/HouseConnect/UserAuthentication";
+    private static final String BASE_URL = "/HouseConnect/UserAuthentication";
 
     // Create Contact instance for the UserAuthentication
     private static final Contact contact = ContactFactory.createContact(

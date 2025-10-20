@@ -43,10 +43,27 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()//This allows all OPTIONS requests to pass through without authentication
                         .requestMatchers(
                                 "/UserAuthentication/login",           // login endpoint is public
-                                "/UserAuthentication/api/auth/signup/**", // signup is public
+                                "/UserAuthentication/api/auth/signup/**", // legacy signup path
+                                "/HouseConnect/UserAuthentication/**",  // REST tests and new base path
+                                "/api/auth/**",                         // new consolidated auth base path
                                 "/Student/**",                           // student API is public
+                                "/HouseConnect/Student/**",
                                 "/Contact/**",
-                                "/Landlord/**"
+                                "/HouseConnect/Contact/**",
+                                "/Landlord/**",
+                                "/HouseConnect/Landlord/**",
+                                "/Address/**",
+                                "/HouseConnect/Address/**",
+                                "/Accommodation/**",
+                                "/HouseConnect/Accommodation/**",
+                                "/Booking/**",
+                                "/HouseConnect/Booking/**",
+                                "/Review/**",
+                                "/HouseConnect/Review/**",
+                                "/Verification/**",
+                                "/HouseConnect/Verification/**",
+                                "/HouseConnect/Administrator/**",
+                                "/api/**"
                         ).permitAll()
                         .anyRequest().authenticated() // everything else requires login
                 );

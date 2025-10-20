@@ -28,7 +28,7 @@ public class StudentFactory {
                 Helper.isNullorEmpty(studentSurname) ||
                 !Helper.validateStudentDateOfBirth(studentDateOfBirth) ||
                 Helper.isNullorEmpty(gender) ||
-                !Helper.isValidPassword(password) ||
+                (password != null && !Helper.isValidPassword(password)) ||
                 !Helper.isValidTimestamp(registrationDate)) {
             return null;
         }

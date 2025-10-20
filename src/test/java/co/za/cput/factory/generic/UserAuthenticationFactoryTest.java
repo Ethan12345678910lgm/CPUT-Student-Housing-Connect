@@ -44,7 +44,7 @@ class UserAuthenticationFactoryTest {
                 null,
                 null
         );
-       assertNull(userAuthentication);
+        assertNull(userAuthentication1);
        System.out.println("passed due to empty fields. Results: " + userAuthentication1);
     }
 

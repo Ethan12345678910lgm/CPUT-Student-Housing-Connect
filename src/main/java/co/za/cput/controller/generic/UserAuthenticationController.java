@@ -2,7 +2,6 @@ package co.za.cput.controller.generic;
 
 import co.za.cput.domain.generic.Contact;
 import co.za.cput.domain.generic.UserAuthentication;
-import co.za.cput.domain.users.Student;
 import co.za.cput.domain.users.Landlord;
 import co.za.cput.service.generic.implementation.ContactServiceImpl;
 import co.za.cput.service.generic.implementation.UserAuthenticationServiceImpl;
@@ -17,8 +16,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/UserAuthentication")
-@CrossOrigin(origins = "*") // Allow frontend access
+@RequestMapping({"/UserAuthentication", "/HouseConnect/UserAuthentication"})
+@CrossOrigin(origins = "http://localhost:3000")
 public class UserAuthenticationController {
 
     private final UserAuthenticationServiceImpl userAuthenticationService;
@@ -49,8 +48,9 @@ public class UserAuthenticationController {
     @GetMapping("/read/{id}")
     public ResponseEntity<UserAuthentication> read(@PathVariable Long id) {
         UserAuthentication userAuth = userAuthenticationService.read(id);
-        if (userAuth == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(userAuth);
+        if (userAuth == null) {
+            return ResponseEntity.notFound().build();
+        }        return ResponseEntity.ok(userAuth);
     }
 
     @PutMapping("/update")
@@ -59,15 +59,17 @@ public class UserAuthenticationController {
             return ResponseEntity.badRequest().build();
         }
         UserAuthentication updated = userAuthenticationService.update(userAuthentication);
-        if (updated == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(updated);
+        if (updated == null) {
+            return ResponseEntity.notFound().build();
+        }        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/getAllUserAuthentications")
     public ResponseEntity<List<UserAuthentication>> getAllUserAuthentications() {
         List<UserAuthentication> userAuthList = userAuthenticationService.getAllUserAuthentications();
-        if (userAuthList == null || userAuthList.isEmpty()) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(userAuthList);
+        if (userAuthList == null || userAuthList.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }        return ResponseEntity.ok(userAuthList);
     }
 
     @DeleteMapping("/delete/{id}")
@@ -75,23 +77,13 @@ public class UserAuthenticationController {
         userAuthenticationService.delete(id);
     }
 
-    // New endpoint for student registration
-    @PostMapping("/api/auth/signup/student")
+    @PostMapping({"/signup/student", "/api/auth/signup/student"})
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<?> registerStudent(@RequestBody StudentRegistrationRequest request) {
         try {
-            // 1. Create Contact first
-            Contact contact = new Contact.Builder()
-                    .setEmail(request.getContact().getEmail())
-                    .setPhoneNumber(request.getContact().getPhoneNumber())
-                    .setAlternatePhoneNumber(request.getContact().getAlternatePhoneNumber())
-                    .setIsEmailVerified(request.getContact().isEmailVerified())
-                    .setIsPhoneVerified(request.getContact().isPhoneVerified())
-                    .setPreferredContactMethod(Contact.PreferredContactMethod.valueOf(request.getContact().getPreferredContactMethod()))
-                    .build();
-
+            Contact contact = buildContact(request.getContact());
             Contact savedContact = contactService.create(contact);
 
-            // 2. Create Student (without password - it goes to UserAuthentication)
             Student student = new Student.Builder()
                     .setStudentName(request.getStudentName())
                     .setStudentSurname(request.getStudentSurname())
@@ -105,8 +97,7 @@ public class UserAuthenticationController {
 
             Student savedStudent = studentService.create(student);
 
-            // 3. Create UserAuthentication with hashed password
-            String username = savedContact.getEmail(); // Use email as username
+            String username = savedContact.getEmail();
             String hashedPassword = passwordEncoder.encode(request.getPassword());
 
             UserAuthentication userAuth = new UserAuthentication.Builder()
@@ -124,33 +115,23 @@ public class UserAuthenticationController {
                     savedStudent.getStudentID(),
                     savedUserAuth.getAuthenticationId()
             ));
-
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(new ErrorResponse("Invalid data: " + e.getMessage()));
+            return ResponseEntity.badRequest().body(new ErrorResponse("Invalid data: " + e.getMessage()));
+
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
-                    .body(new ErrorResponse("Registration failed: " + e.getMessage()));
+            return ResponseEntity.internalServerError().body(new ErrorResponse("Registration failed: " + e.getMessage()));
         }
     }
 
-    // New endpoint for landlord registration
-    @PostMapping("/api/auth/signup/landlord")
+    @PostMapping({"/signup/landlord", "/api/auth/signup/landlord"})
+    @CrossOrigin(origins = "http://localhost:3000")
     public ResponseEntity<?> registerLandlord(@RequestBody LandlordRegistrationRequest request) {
         try {
-            // 1. Create Contact first
-            Contact contact = new Contact.Builder()
-                    .setEmail(request.getContact().getEmail())
-                    .setPhoneNumber(request.getContact().getPhoneNumber())
-                    .setAlternatePhoneNumber(request.getContact().getAlternatePhoneNumber())
-                    .setIsEmailVerified(request.getContact().isEmailVerified())
-                    .setIsPhoneVerified(request.getContact().isPhoneVerified())
-                    .setPreferredContactMethod(Contact.PreferredContactMethod.valueOf(request.getContact().getPreferredContactMethod()))
-                    .build();
+            Contact contact = buildContact(request.getContact());
+
 
             Contact savedContact = contactService.create(contact);
 
-            // 2. Create Landlord (without password - it goes to UserAuthentication)
             Landlord landlord = new Landlord.Builder()
                     .setLandlordFirstName(request.getLandlordFirstName())
                     .setLandlordLastName(request.getLandlordLastName())
@@ -161,8 +142,7 @@ public class UserAuthenticationController {
 
             Landlord savedLandlord = landLordService.create(landlord);
 
-            // 3. Create UserAuthentication with hashed password
-            String username = savedContact.getEmail(); // Use email as username
+            String username = savedContact.getEmail();
             String hashedPassword = passwordEncoder.encode(request.getPassword());
 
             UserAuthentication userAuth = new UserAuthentication.Builder()

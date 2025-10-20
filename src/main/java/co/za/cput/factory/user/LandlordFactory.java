@@ -25,7 +25,7 @@ public class LandlordFactory {
         if (Helper.isNullorEmpty(landlordFirstName) ||
                 Helper.isNullorEmpty(landlordLastName) ||
                 !Helper.isValidDate(dateRegistered) ||
-                !Helper.isValidPassword(password)) {
+                (password != null && !Helper.isValidPassword(password))) {
             return null;
         }
 

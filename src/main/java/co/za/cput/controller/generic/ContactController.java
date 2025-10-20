@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "*")
-@RequestMapping("/Contact")
+@CrossOrigin(origins = "http://localhost:3000")
+@RequestMapping({"/api/contacts", "/HouseConnect/Contact"})
 
 public class ContactController {
 

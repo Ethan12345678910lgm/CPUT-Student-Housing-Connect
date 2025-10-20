@@ -245,7 +245,7 @@ public class Student {
             this.studentSurname = student.getStudentSurname();
             this.dateOfBirth = student.getDateOfBirth();
             this.gender = student.getGender();
-            //this.password = student.getPassword();
+            this.password = student.getPassword();
             this.registrationDate = student.getRegistrationDate();
             this.isStudentVerified = student.getIsStudentVerified();
             this.fundingStatus = student.getFundingStatus();

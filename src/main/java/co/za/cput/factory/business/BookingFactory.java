@@ -23,7 +23,7 @@ public class BookingFactory {
                                         Review review) {
 
         if (!Helper.isValidDate(requestDate) ||
-                !Helper.isValidDate(checkInDate) ||
+                checkInDate == null ||
                 !Helper.isValidCheckOutDate(checkOutDate) ||
                 !Helper.isValidBookingDates(checkInDate, checkOutDate) ||
                 !Helper.isValid_DecimalNumber(totalAmount) ||
@@ -33,6 +33,9 @@ public class BookingFactory {
             return null;
         }
 
+        if (checkInDate.isBefore(requestDate)) {
+            return null;
+        }
 
         return new Booking.Builder()
                 .setRequestDate(requestDate)
