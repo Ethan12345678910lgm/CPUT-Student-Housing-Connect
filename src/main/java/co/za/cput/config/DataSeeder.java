@@ -53,12 +53,27 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (administratorRepository.count() > 0 || landLordRepository.count() > 0 || studentRepository.count() > 0) {
+        ensureSuperAdministrator();
+
+        boolean hasSeedData = landLordRepository.count() > 0
+                || studentRepository.count() > 0
+                || accommodationRepository.count() > 0
+                || verificationRepository.count() > 0
+                || bookingRepository.count() > 0;
+
+        if (hasSeedData) {
             return;
         }
 
-        Administrator administrator = createAdministrator();
-        administratorRepository.save(administrator);
+        if (administratorRepository.count() == 1) {
+            Administrator operationsAdmin = createAdministrator();
+            administratorRepository.save(operationsAdmin);
+        }
+
+        Administrator verifyingAdministrator = administratorRepository.findAll().stream()
+                .filter(admin -> !admin.isSuperAdmin())
+                .findFirst()
+                .orElseGet(() -> administratorRepository.findFirstBySuperAdminTrue().orElse(null));
 
         Landlord verifiedLandlord = landLordRepository.save(createLandlord(
                 "Sipho",
@@ -150,7 +165,7 @@ public class DataSeeder implements CommandLineRunner {
                 .setVerificationDate(LocalDate.now().minusDays(2))
                 .setVerificationStatus(Verification.VerificationStatus.APPROVED)
                 .setNotes("Utility bills and ownership confirmed.")
-                .setAdministrator(administrator)
+                .setAdministrator(verifyingAdministrator)
                 .setAccommodation(belharLoft)
                 .build());
 
@@ -159,9 +174,36 @@ public class DataSeeder implements CommandLineRunner {
                 .setUpdateAt(LocalDateTime.now().minusDays(1))
                 .setVerificationStatus(Verification.VerificationStatus.PENDING)
                 .setNotes("Awaiting safety compliance certificates.")
-                .setAdministrator(administrator)
+                .setAdministrator(verifyingAdministrator)
                 .setAccommodation(observatoryNest)
                 .build());
+    }
+
+    private Administrator ensureSuperAdministrator() {
+        String superAdminEmail = "superadmin@gmail.com";
+        return administratorRepository.findFirstByContact_EmailIgnoreCase(superAdminEmail)
+                .filter(Administrator::isSuperAdmin)
+                .orElseGet(() -> administratorRepository.saveAndFlush(createSuperAdministrator(superAdminEmail)));
+    }
+
+    private Administrator createSuperAdministrator(String email) {
+        Contact adminContact = new Contact.Builder()
+                .setEmail(email)
+                .setPhoneNumber("0601234567")
+                .setAlternatePhoneNumber("0789876543")
+                .setIsEmailVerified(true)
+                .setIsPhoneVerified(true)
+                .setPreferredContactMethod(Contact.PreferredContactMethod.EMAIL)
+                .build();
+
+        return new Administrator.Builder()
+                .setAdminName("Super")
+                .setAdminSurname("Administrator")
+                .setAdminPassword(passwordEncoder.encode("SuperAdmin*"))
+                .setAdminRoleStatus(Administrator.AdminRoleStatus.ACTIVE)
+                .setSuperAdmin(true)
+                .setContact(adminContact)
+                .build();
     }
 
     private Administrator createAdministrator() {
@@ -179,6 +221,7 @@ public class DataSeeder implements CommandLineRunner {
                 .setAdminSurname("Mokoena")
                 .setAdminPassword(passwordEncoder.encode("Admin1234"))
                 .setAdminRoleStatus(Administrator.AdminRoleStatus.ACTIVE)
+                .setSuperAdmin(false)
                 .setContact(adminContact)
                 .build();
     }

@@ -19,8 +19,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 @Service
 public class AdministratorServiceImpl implements IAdministratorService {
@@ -47,14 +47,21 @@ public class AdministratorServiceImpl implements IAdministratorService {
     @Override
     public Administrator create(Administrator administrator) {
         Administrator securedAdministrator = secureAdministrator(administrator);
-        // First, prepare accommodation and landlord inside verifications
-        Administrator preparedAdmin = LinkingEntitiesHelper.prepareAdministratorForSave(
-                securedAdministrator,
-                accommodationRepository,
-                landLordRepository
-        );
 
-        // Step 1: Save the admin WITHOUT verifications
+        if (securedAdministrator == null) {
+            throw new IllegalArgumentException("Administrator details are required.");
+        }
+
+        if (securedAdministrator.getContact() != null && securedAdministrator.getContact().getEmail() != null) {
+            String email = securedAdministrator.getContact().getEmail();
+            administratorRepository.findFirstByContact_EmailIgnoreCase(email)
+                    .filter(existing -> !existing.getAdminID().equals(securedAdministrator.getAdminID()))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("An administrator with this email already exists.");
+                    });
+        }
+
+        Administrator preparedAdmin = prepareAdministratorForPersistence(securedAdministrator);
         Administrator adminWithoutVerifications = new Administrator.Builder()
                 .copy(preparedAdmin)
                 .setVerifications(null)
@@ -62,7 +69,6 @@ public class AdministratorServiceImpl implements IAdministratorService {
 
         Administrator savedAdmin = administratorRepository.saveAndFlush(adminWithoutVerifications);
 
-        // Step 2: Now set back-reference and save verifications
         List<Verification> preparedVerifications = preparedAdmin.getVerifications();
         if (preparedVerifications == null || preparedVerifications.isEmpty()) {
             return savedAdmin;
@@ -107,6 +113,57 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
+    public Administrator submitApplication(Administrator administrator) {
+        Administrator securedAdministrator = secureAdministrator(administrator);
+        if (securedAdministrator == null) {
+            throw new IllegalArgumentException("Administrator details are required.");
+        }
+
+        if (securedAdministrator.getContact() != null
+                && securedAdministrator.getContact().getEmail() != null
+                && administratorRepository.existsByContact_EmailIgnoreCase(securedAdministrator.getContact().getEmail())) {
+            throw new IllegalArgumentException("An administrator with this email already exists.");
+        }
+
+        Administrator pendingAdmin = new Administrator.Builder()
+                .copy(securedAdministrator)
+                .setAdminID(null)
+                .setSuperAdmin(false)
+                .setAdminRoleStatus(Administrator.AdminRoleStatus.INACTIVE)
+                .setVerifications(null)
+                .build();
+
+        return administratorRepository.saveAndFlush(pendingAdmin);
+    }
+
+    @Override
+    public Administrator approveAdministrator(Long applicantId, String superAdminEmail, String superAdminPassword) {
+        Administrator superAdministrator = authenticateSuperAdmin(superAdminEmail, superAdminPassword);
+        if (superAdministrator == null) {
+            throw new IllegalArgumentException("Invalid super administrator credentials.");
+        }
+
+        Administrator applicant = administratorRepository.findById(applicantId)
+                .orElseThrow(() -> new IllegalArgumentException("Administrator not found."));
+
+        if (applicant.isSuperAdmin()) {
+            return applicant;
+        }
+
+        Administrator approved = new Administrator.Builder()
+                .copy(applicant)
+                .setAdminRoleStatus(Administrator.AdminRoleStatus.ACTIVE)
+                .build();
+
+        return administratorRepository.saveAndFlush(approved);
+    }
+
+    @Override
+    public List<Administrator> getPendingAdministrators() {
+        return administratorRepository.findByAdminRoleStatus(Administrator.AdminRoleStatus.INACTIVE);
+    }
+
+    @Override
     public Administrator authenticateAdmin(Long adminId, String adminPassword) {
         if (adminId == null || Helper.isNullorEmpty(adminPassword)) {
             return null;
@@ -115,6 +172,20 @@ public class AdministratorServiceImpl implements IAdministratorService {
         return administratorRepository.findById(adminId)
                 .filter(admin -> admin.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE)
                 .filter(admin -> passwordMatches(adminPassword, admin.getAdminPassword()))
+                .orElse(null);
+    }
+
+    private Administrator authenticateSuperAdmin(String email, String password) {
+        if (Helper.isNullorEmpty(email) || Helper.isNullorEmpty(password)) {
+            return null;
+        }
+
+        String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+
+        return administratorRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail)
+                .filter(Administrator::isSuperAdmin)
+                .filter(admin -> admin.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE)
+                .filter(admin -> passwordMatches(password, admin.getAdminPassword()))
                 .orElse(null);
     }
 
@@ -186,7 +257,29 @@ public class AdministratorServiceImpl implements IAdministratorService {
                 .setAdminName(normalise(administrator.getAdminName()))
                 .setAdminSurname(normalise(administrator.getAdminSurname()))
                 .setAdminPassword(hashPassword(administrator.getAdminPassword()))
+                .setSuperAdmin(administrator.isSuperAdmin())
                 .setContact(contact)
+                .build();
+    }
+
+    private Administrator prepareAdministratorForPersistence(Administrator administrator) {
+        Administrator preparedAdmin = LinkingEntitiesHelper.prepareAdministratorForSave(
+                administrator,
+                accommodationRepository,
+                landLordRepository
+        );
+
+        boolean isSuperAdmin = administrator.isSuperAdmin();
+        Administrator.AdminRoleStatus status = administrator.getAdminRoleStatus();
+
+        if (!isSuperAdmin && status == null) {
+            status = Administrator.AdminRoleStatus.INACTIVE;
+        }
+
+        return new Administrator.Builder()
+                .copy(preparedAdmin)
+                .setSuperAdmin(isSuperAdmin)
+                .setAdminRoleStatus(status)
                 .build();
     }
 

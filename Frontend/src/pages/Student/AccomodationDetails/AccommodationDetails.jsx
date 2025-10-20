@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fetchAccommodation } from "../../../services/accommodationService";
+import { applyForListing } from "../../../services/bookingService";
+import { addToWatchlist } from "../../../services/watchlistService";
+import { getCurrentUser } from "../../../services/authService";
 
 function AccommodationDetails() {
     const { id } = useParams();
@@ -8,6 +11,11 @@ function AccommodationDetails() {
     const [accommodation, setAccommodation] = useState(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
+    const [isApplying, setIsApplying] = useState(false);
+    const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
+    const [feedback, setFeedback] = useState(null);
+
+    const currentUser = useMemo(() => getCurrentUser(), []);
 
     useEffect(() => {
         const loadAccommodation = async () => {
@@ -42,6 +50,66 @@ function AccommodationDetails() {
     const mapUrl = parsedAddress
         ? `https://www.google.com/maps?q=${encodeURIComponent(parsedAddress.full)}&output=embed`
         : "https://www.google.com/maps?q=Cape%20Town%20Campus&output=embed";
+
+    const handleApply = async () => {
+        if (!currentUser || currentUser.role !== "student") {
+            navigate("/student/login", {
+                replace: true,
+                state: { message: "Sign in as a student to apply for accommodation." },
+            });
+            return;
+        }
+
+        if (!accommodation?.accommodationID) {
+            return;
+        }
+
+        setIsApplying(true);
+        setFeedback(null);
+
+        try {
+            await applyForListing(currentUser.userId, accommodation.accommodationID);
+            setFeedback({ type: "success", message: "Application submitted. Track it from your dashboard." });
+            navigate("/student/applications", { replace: true });
+        } catch (applyError) {
+            setFeedback({
+                type: "error",
+                message: applyError.message || "We could not submit your application. Please try again.",
+            });
+        } finally {
+            setIsApplying(false);
+        }
+    };
+
+    const handleSaveToWatchlist = async () => {
+        if (!currentUser || currentUser.role !== "student") {
+            navigate("/student/login", {
+                replace: true,
+                state: { message: "Sign in as a student to save listings." },
+            });
+            return;
+        }
+
+        if (!accommodation?.accommodationID) {
+            return;
+        }
+
+        setIsSavingWatchlist(true);
+        setFeedback(null);
+
+        try {
+            await addToWatchlist(currentUser.userId, accommodation.accommodationID);
+            setFeedback({ type: "success", message: "Added to your watchlist." });
+        } catch (watchlistError) {
+            setFeedback({
+                type: "error",
+                message: watchlistError.message || "We could not save this listing to your watchlist.",
+            });
+        } finally {
+            setIsSavingWatchlist(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -214,8 +282,16 @@ function AccommodationDetails() {
                         <p style={styles.landlordVerification}>
                             {landlordVerified ? "This landlord has been verified by CPUT." : "Awaiting verification."}
                         </p>
-                        <button style={styles.primaryButton} onClick={() => navigate(`/student/applications`)}>
-                            Apply for this listing
+                        <button
+                            style={{
+                                ...styles.primaryButton,
+                                opacity: isApplying ? 0.7 : 1,
+                                cursor: isApplying ? "wait" : "pointer",
+                            }}
+                            onClick={handleApply}
+                            disabled={isApplying}
+                        >
+                            {isApplying ? "Submitting..." : "Apply for this listing"}
                         </button>
                     </div>
 
@@ -224,11 +300,35 @@ function AccommodationDetails() {
                         <p style={styles.sidebarText}>
                             Save this listing to your watchlist or request a virtual viewing. Our housing support team responds within 24 hours.
                         </p>
-                        <button style={styles.secondaryButton}>Save to watchlist</button>
+                        <button
+                            style={{
+                                ...styles.secondaryButton,
+                                opacity: isSavingWatchlist ? 0.7 : 1,
+                                cursor: isSavingWatchlist ? "wait" : "pointer",
+                            }}
+                            onClick={handleSaveToWatchlist}
+                            disabled={isSavingWatchlist}
+                        >
+                            {isSavingWatchlist ? "Saving..." : "Save to watchlist"}
+                        </button>
                         <button style={styles.ghostButton}>Request a virtual viewing</button>
                     </div>
                 </aside>
             </div>
+            {feedback && (
+                <div
+                    role="alert"
+                    style={{
+                        marginTop: 16,
+                        padding: "12px 16px",
+                        borderRadius: 12,
+                        backgroundColor: feedback.type === "error" ? "#fee2e2" : "#dcfce7",
+                        color: feedback.type === "error" ? "#b91c1c" : "#166534",
+                    }}
+                >
+                    {feedback.message}
+                </div>
+            )}
         </div>
     );
 }

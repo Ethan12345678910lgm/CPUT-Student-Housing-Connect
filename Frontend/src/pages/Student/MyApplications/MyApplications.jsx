@@ -1,25 +1,63 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FaCheckCircle, FaClock, FaFileAlt } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import StudentNavigation from "../../../components/student/StudentNavigation";
+import { getCurrentUser } from "../../../services/authService";
+import { listApplicationsForStudent } from "../../../services/bookingService";
 
-const demoApplications = [
-    {
-        id: "APP-2024-001",
-        listing: "Belhar Village Lofts",
-        status: "Awaiting documents",
-        submittedOn: "2024-05-01",
-        nextStep: "Upload proof of registration",
-    },
-    {
-        id: "APP-2024-002",
-        listing: "Observatory Studios",
-        status: "Under landlord review",
-        submittedOn: "2024-05-04",
-        nextStep: "Landlord will respond in 1 day",
-    },
-];
+const formatDate = (value) => {
+    if (!value) {
+        return "—";
+    }
+    try {
+        return new Date(value).toLocaleDateString();
+    } catch (error) {
+        return value;
+    }
+};
+
+const statusBadge = (status) => {
+    switch (status) {
+        case "CONFIRMED":
+            return { label: "Approved", icon: <FaCheckCircle aria-hidden="true" />, className: "approved" };
+        case "FAILED":
+            return { label: "Declined", icon: <FaClock aria-hidden="true" />, className: "revoked" };
+        default:
+            return { label: "In review", icon: <FaClock aria-hidden="true" />, className: "pending" };
+    }
+};
 
 function MyApplications() {
+    const navigate = useNavigate();
+    const currentUser = useMemo(() => getCurrentUser(), []);
+    const [applications, setApplications] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        if (!currentUser || currentUser.role !== "student") {
+            navigate("/student/login", {
+                replace: true,
+                state: { message: "Please sign in to view your applications." },
+            });
+            return;
+        }
+
+        const load = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const results = await listApplicationsForStudent(currentUser.userId);
+                setApplications(results);
+            } catch (requestError) {
+                setError(requestError.message || "Unable to load your applications.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        load();
+    }, [currentUser, navigate]);
     return (
         <div className="student-dashboard-page">
             <StudentNavigation />
@@ -42,27 +80,47 @@ function MyApplications() {
                         </div>
                     </header>
 
-                    <div className="student-applications-table" role="table">
-                        <div className="student-applications-row heading" role="row">
-                            <span role="columnheader">Reference</span>
-                            <span role="columnheader">Listing</span>
-                            <span role="columnheader">Status</span>
-                            <span role="columnheader">Submitted</span>
-                            <span role="columnheader">Next step</span>
-                        </div>
-                        {demoApplications.map((application) => (
-                            <div key={application.id} className="student-applications-row" role="row">
-                                <span role="cell">{application.id}</span>
-                                <span role="cell">{application.listing}</span>
-                                <span role="cell" className="status">
-                                    <FaClock aria-hidden="true" />
-                                    {application.status}
-                                </span>
-                                <span role="cell">{application.submittedOn}</span>
-                                <span role="cell">{application.nextStep}</span>
+                    {error && <div className="alert error">{error}</div>}
+
+                    {isLoading ? (
+                        <p style={{ margin: 0 }}>Loading your applications...</p>
+                    ) : applications.length === 0 ? (
+                        <p style={{ margin: 0 }}>You have not submitted any applications yet.</p>
+                    ) : (
+                        <div className="student-applications-table" role="table">
+                            <div className="student-applications-row heading" role="row">
+                                <span role="columnheader">Reference</span>
+                                <span role="columnheader">Listing</span>
+                                <span role="columnheader">Status</span>
+                                <span role="columnheader">Submitted</span>
+                                <span role="columnheader">Next step</span>
                             </div>
-                        ))}
-                    </div>
+                            {applications.map((application) => {
+                                const badge = statusBadge(application.bookingStatus);
+                                const reference = application.bookingId ? `APP-${String(application.bookingId).padStart(4, "0")}` : "—";
+                                const listing = application.accommodationAddress || application.accommodationSuburb || "—";
+                                const nextStep =
+                                    application.bookingStatus === "CONFIRMED"
+                                        ? "Prepare for move-in"
+                                        : application.bookingStatus === "FAILED"
+                                            ? "Contact the landlord for feedback"
+                                            : "Await landlord response";
+
+                                return (
+                                    <div key={application.bookingId ?? listing} className="student-applications-row" role="row">
+                                        <span role="cell">{reference}</span>
+                                        <span role="cell">{listing}</span>
+                                        <span role="cell" className={`status ${badge.className}`}>
+                                            {badge.icon}
+                                            {badge.label}
+                                        </span>
+                                        <span role="cell">{formatDate(application.requestDate)}</span>
+                                        <span role="cell">{nextStep}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </section>
 
                 <section className="student-next-steps" aria-label="Application tips">
@@ -77,8 +135,8 @@ function MyApplications() {
                     <div className="student-next-steps-card">
                         <h2>Recently approved</h2>
                         <p className="student-approved">
-                            <FaCheckCircle aria-hidden="true" /> Belhar Village Lofts confirmed three new tenants this
-                            week.
+                            <FaCheckCircle aria-hidden="true" /> Belhar Village Lofts confirmed three new tenants this week.
+
                         </p>
                     </div>
                 </section>

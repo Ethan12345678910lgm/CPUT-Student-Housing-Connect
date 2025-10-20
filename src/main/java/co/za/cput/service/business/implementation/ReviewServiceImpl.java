@@ -53,8 +53,17 @@ public class ReviewServiceImpl implements IReviewService {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         // Link the booking to the review
+        int rating = review.getRating();
+        if (rating < 1) {
+            rating = 1;
+        } else if (rating > 5) {
+            rating = 5;
+        }
+
         Review reviewToSave = new Review.Builder()
                 .copy(review)
+                .setRating(rating)
+                .setReviewDate(review.getReviewDate() != null ? review.getReviewDate() : java.time.LocalDate.now())
                 .setBooking(booking)
                 .build();
 

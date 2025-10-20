@@ -29,14 +29,27 @@ public class LandlordFactory {
             return null;
         }
 
-        return new Landlord.Builder()
+        Landlord.Builder builder = new Landlord.Builder()
                 .setLandlordFirstName(landlordFirstName)
                 .setLandlordLastName(landlordLastName)
                 .setVerified(isVerified)
                 .setDateRegistered(dateRegistered)
-                .setPassword(password)
                 .setContact(contact)
-                .setAccommodationList(accommodationList)
-                .build();
+                .setAccommodationList(accommodationList);
+
+        if (!Helper.isNullorEmpty(password)) {
+            builder.setPassword(password);
+        }
+
+        return builder.build();
+    }
+
+    public static Landlord createLandlord(String landlordFirstName,
+                                          String landlordLastName,
+                                          boolean isVerified,
+                                          LocalDate dateRegistered,
+                                          Contact contact,
+                                          List<Accommodation> accommodationList) {
+        return createLandlord(landlordFirstName, landlordLastName, isVerified, dateRegistered, null, contact, accommodationList);
     }
 }

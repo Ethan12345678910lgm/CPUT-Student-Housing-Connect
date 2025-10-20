@@ -33,17 +33,34 @@ public class StudentFactory {
             return null;
         }
 
-        return new Student.Builder()
+        Student.Builder builder = new Student.Builder()
                 .setStudentName(studentName)
                 .setStudentSurname(studentSurname)
                 .setDateOfBirth(studentDateOfBirth)
                 .setGender(gender)
-                .setPassword(password)
                 .setRegistrationDate(registrationDate)
                 .setIsStudentVerified(isStudentVerified)
                 .setFundingStatus(fundingStatus)
                 .setContact(contact)
-                .setBookings(bookings)
-                .build();
+                .setBookings(bookings);
+
+        if (!Helper.isNullorEmpty(password)) {
+            builder.setPassword(password);
+        }
+
+        return builder.build();
+    }
+
+    public static Student createStudent(String studentName,
+                                        String studentSurname,
+                                        LocalDate studentDateOfBirth,
+                                        String gender,
+                                        LocalDateTime registrationDate,
+                                        boolean isStudentVerified,
+                                        Student.FundingStatus fundingStatus,
+                                        Contact contact,
+                                        List<Booking> bookings) {
+        return createStudent(studentName, studentSurname, studentDateOfBirth, gender, null, registrationDate,
+                isStudentVerified, fundingStatus, contact, bookings);
     }
 }
