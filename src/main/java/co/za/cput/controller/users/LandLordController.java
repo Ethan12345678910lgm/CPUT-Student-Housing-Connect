@@ -43,7 +43,7 @@ public class LandLordController {
         }
         Landlord updated = landLordService.update(landlord);
         if (updated == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(updated)
     }
 
     @GetMapping("/getAllLandlords")
