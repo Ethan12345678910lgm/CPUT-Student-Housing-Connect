@@ -159,7 +159,12 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
-    public List<Administrator> getPendingAdministrators() {
+    public List<Administrator> getPendingAdministrators(String superAdminEmail, String superAdminPassword) {
+        Administrator superAdministrator = authenticateSuperAdmin(superAdminEmail, superAdminPassword);
+        if (superAdministrator == null) {
+            throw new IllegalArgumentException("Invalid super administrator credentials.");
+        }
+
         return administratorRepository.findByAdminRoleStatus(Administrator.AdminRoleStatus.INACTIVE);
     }
 

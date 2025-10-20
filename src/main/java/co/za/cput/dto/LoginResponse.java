@@ -16,6 +16,7 @@ public class LoginResponse {
     private String email;
     private Boolean verified;
     private String adminRoleStatus;
+    private Boolean superAdmin;
     private String message;
 
     public LoginResponse() {
@@ -30,6 +31,7 @@ public class LoginResponse {
         this.email = builder.email;
         this.verified = builder.verified;
         this.adminRoleStatus = builder.adminRoleStatus;
+        this.superAdmin = builder.superAdmin;
         this.message = builder.message;
     }
 
@@ -49,6 +51,7 @@ public class LoginResponse {
                 .setAdminRoleStatus(administrator.getAdminRoleStatus() != null
                         ? administrator.getAdminRoleStatus().name()
                         : null)
+                .setSuperAdmin(administrator.isSuperAdmin())
                 .setMessage("Login successful.")
                 .build();
     }
@@ -126,6 +129,10 @@ public class LoginResponse {
         return adminRoleStatus;
     }
 
+    public Boolean getSuperAdmin() {
+        return superAdmin;
+    }
+
     public String getMessage() {
         return message;
     }
@@ -139,6 +146,7 @@ public class LoginResponse {
         private String email;
         private Boolean verified;
         private String adminRoleStatus;
+        private Boolean superAdmin;
         private String message;
 
         public Builder setAuthenticated(boolean authenticated) {
@@ -178,6 +186,11 @@ public class LoginResponse {
 
         public Builder setAdminRoleStatus(String adminRoleStatus) {
             this.adminRoleStatus = adminRoleStatus;
+            return this;
+        }
+
+        public Builder setSuperAdmin(Boolean superAdmin) {
+            this.superAdmin = superAdmin;
             return this;
         }
 

@@ -180,7 +180,7 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private Administrator ensureSuperAdministrator() {
-        String superAdminEmail = "superadmin@gmail.com";
+        String superAdminEmail = "admin@cput-housing.co.za";
         return administratorRepository.findFirstByContact_EmailIgnoreCase(superAdminEmail)
                 .filter(Administrator::isSuperAdmin)
                 .orElseGet(() -> administratorRepository.saveAndFlush(createSuperAdministrator(superAdminEmail)));
@@ -199,7 +199,7 @@ public class DataSeeder implements CommandLineRunner {
         return new Administrator.Builder()
                 .setAdminName("Super")
                 .setAdminSurname("Administrator")
-                .setAdminPassword(passwordEncoder.encode("SuperAdmin*"))
+                .setAdminPassword(passwordEncoder.encode("Admin1234"))
                 .setAdminRoleStatus(Administrator.AdminRoleStatus.ACTIVE)
                 .setSuperAdmin(true)
                 .setContact(adminContact)
@@ -208,7 +208,7 @@ public class DataSeeder implements CommandLineRunner {
 
     private Administrator createAdministrator() {
         Contact adminContact = new Contact.Builder()
-                .setEmail("admin@cput-housing.co.za")
+                .setEmail("operations.admin@cput-housing.co.za")
                 .setPhoneNumber("0601234567")
                 .setAlternatePhoneNumber("0789876543")
                 .setIsEmailVerified(true)

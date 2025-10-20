@@ -69,12 +69,22 @@ public class AdministratorController {
     }
 
     @GetMapping("/applications")
-    public ResponseEntity<List<Administrator>> listPendingApplications() {
-        List<Administrator> pending = administratorService.getPendingAdministrators();
-        if (pending.isEmpty()) {
-            return ResponseEntity.noContent().build();
+    public ResponseEntity<?> listPendingApplications(
+            @RequestParam("superAdminEmail") String superAdminEmail,
+            @RequestParam("superAdminPassword") String superAdminPassword) {
+
+        try {
+            List<Administrator> pending = administratorService.getPendingAdministrators(superAdminEmail, superAdminPassword);
+            if (pending.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(pending);
+        } catch (IllegalArgumentException exception) {
+            if ("Invalid super administrator credentials.".equals(exception.getMessage())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(exception.getMessage());
+            }
+            return ResponseEntity.badRequest().body(exception.getMessage());
         }
-        return ResponseEntity.ok(pending);
     }
 
     @PostMapping("/{applicantId}/approve")
