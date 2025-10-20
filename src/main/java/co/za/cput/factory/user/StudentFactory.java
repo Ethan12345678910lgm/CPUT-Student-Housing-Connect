@@ -17,7 +17,7 @@ public class StudentFactory {
                                  String studentSurname,
                                  LocalDate studentDateOfBirth,
                                  String gender,
-                                 //String password,
+                                 String password,
                                  LocalDateTime registrationDate,
                                  boolean isStudentVerified,
                                  Student.FundingStatus fundingStatus,
@@ -28,22 +28,39 @@ public class StudentFactory {
                 Helper.isNullorEmpty(studentSurname) ||
                 !Helper.validateStudentDateOfBirth(studentDateOfBirth) ||
                 Helper.isNullorEmpty(gender) ||
-                //!Helper.isValidPassword(password) ||
+                !Helper.isValidPassword(password) ||
                 !Helper.isValidTimestamp(registrationDate)) {
             return null;
         }
 
-        return new Student.Builder()
+        Student.Builder builder = new Student.Builder()
                 .setStudentName(studentName)
                 .setStudentSurname(studentSurname)
                 .setDateOfBirth(studentDateOfBirth)
                 .setGender(gender)
-                //.setPassword(password)
                 .setRegistrationDate(registrationDate)
                 .setIsStudentVerified(isStudentVerified)
                 .setFundingStatus(fundingStatus)
                 .setContact(contact)
-                .setBookings(bookings)
-                .build();
+                .setBookings(bookings);
+
+        if (!Helper.isNullorEmpty(password)) {
+            builder.setPassword(password);
+        }
+
+        return builder.build();
+    }
+
+    public static Student createStudent(String studentName,
+                                        String studentSurname,
+                                        LocalDate studentDateOfBirth,
+                                        String gender,
+                                        LocalDateTime registrationDate,
+                                        boolean isStudentVerified,
+                                        Student.FundingStatus fundingStatus,
+                                        Contact contact,
+                                        List<Booking> bookings) {
+        return createStudent(studentName, studentSurname, studentDateOfBirth, gender, null, registrationDate,
+                isStudentVerified, fundingStatus, contact, bookings);
     }
 }

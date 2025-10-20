@@ -13,7 +13,7 @@ import java.util.List;
 
 @RestController
 @CrossOrigin(origins = "*")
-@RequestMapping("/Landlord")
+@RequestMapping({"/Landlord", "/api/landlords"})
 public class LandLordController {
 
     private final LandLordServiceImpl landLordService;

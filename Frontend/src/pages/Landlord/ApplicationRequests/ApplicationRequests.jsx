@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LandlordLayout from "../../../components/landlord/LandlordLayout";
 import { getCurrentUser } from "../../../services/authService";
-import { listBookings, updateBookingStatus } from "../../../services/bookingService";
+import { listApplicationsForLandlord, updateApplicationStatus } from "../../../services/bookingService";
 
 const statusConfig = {
   IN_PROGRESS: {
@@ -74,7 +74,7 @@ export default function ApplicationRequests() {
     setIsLoading(true);
     setError("");
     try {
-      const bookings = await listBookings({ landlordId: currentUser.userId });
+      const bookings = await listApplicationsForLandlord(currentUser.userId);
       setApplications(Array.isArray(bookings) ? bookings : []);
     } catch (requestError) {
       setError(requestError.message || "Unable to load applications at this time.");
@@ -102,14 +102,14 @@ export default function ApplicationRequests() {
       return;
     }
 
-    setUpdatingId(application.bookingID);
+    setUpdatingId(application.bookingId);
     setError("");
 
     try {
-      const updated = await updateBookingStatus(application, nextStatus);
+      const updated = await updateApplicationStatus(application.bookingId, nextStatus);
       setApplications((previous) =>
           previous.map((item) =>
-              item.bookingID === updated.bookingID ? { ...item, bookingStatus: updated.bookingStatus } : item
+              item.bookingId === updated.bookingId ? { ...item, bookingStatus: updated.bookingStatus } : item
           )
       );
     } catch (updateError) {
@@ -177,28 +177,19 @@ export default function ApplicationRequests() {
                 <tbody>
                 {filteredApplications.map((application) => {
                   const config = statusConfig[application.bookingStatus] ?? statusConfig.IN_PROGRESS;
-                  const studentName = [
-                    application.student?.studentName,
-                    application.student?.studentSurname,
-                  ]
-                      .filter(Boolean)
-                      .join(" ")
-                      .trim();
+                  const studentName = [application.studentFirstName, application.studentLastName]
 
-                  const listingAddress = [
-                    application.accommodation?.address?.streetNumber,
-                    application.accommodation?.address?.streetName,
-                  ]
                       .filter(Boolean)
                       .join(" ")
                       .trim();
+                  const listingAddress = application.accommodationAddress || application.accommodationSuburb || "—";
 
                   return (
-                      <tr key={application.bookingID}>
-                        <td>{studentName || application.student?.contact?.email || "Unknown"}</td>
-                        <td>{listingAddress || application.accommodation?.address?.suburb || "—"}</td>
+                      <tr key={application.bookingId}>
+                        <td>{studentName || application.studentEmail || "Unknown"}</td>
+                        <td>{listingAddress}</td>
                         <td>{formatDate(application.requestDate)}</td>
-                        <td>{formatCurrency(application.totalAmount)}</td>
+                        <td>{formatCurrency(application.monthlyRent)}</td>
                         <td>
                           <span className={`badge ${config.badgeClass}`}>{config.label}</span>
                         </td>
@@ -207,9 +198,9 @@ export default function ApplicationRequests() {
                               type="button"
                               className="btn-primary"
                               onClick={() => handleStatusUpdate(application)}
-                              disabled={updatingId === application.bookingID}
+                              disabled={updatingId === application.bookingId}
                           >
-                            {updatingId === application.bookingID ? "Updating..." : config.actionLabel}
+                            {updatingId === application.bookingId ? "Updating..." : config.actionLabel}
                           </button>
                         </td>
                       </tr>

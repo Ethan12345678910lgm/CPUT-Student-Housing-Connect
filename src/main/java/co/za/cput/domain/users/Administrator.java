@@ -22,6 +22,9 @@ public class Administrator {
     @Enumerated(EnumType.STRING)
     private AdminRoleStatus adminRoleStatus;
 
+    @Column(name = "is_super_admin")
+    private boolean superAdmin;
+
     public enum AdminRoleStatus {
         ACTIVE,
         INACTIVE,
@@ -89,6 +92,18 @@ public class Administrator {
         this.adminRoleStatus = adminRoleStatus;
     }
 
+    public boolean isSuperAdmin() {
+        return superAdmin;
+    }
+
+    public boolean getSuperAdmin() {
+        return superAdmin;
+    }
+
+    public void setSuperAdmin(boolean superAdmin) {
+        this.superAdmin = superAdmin;
+    }
+
     public Contact getContact() {
         return contact;
     }
@@ -113,6 +128,7 @@ public class Administrator {
                 ", adminSurname='" + adminSurname + '\'' +
                 ", adminPassword='" + adminPassword + '\'' +
                 ", adminRoleStatus=" + adminRoleStatus +
+                ", superAdmin=" + superAdmin +
                 ", contact=" + contact +
                 ", verifications=" + verifications +
                 '}';
@@ -124,6 +140,7 @@ public class Administrator {
         private String adminSurname;
         private String adminPassword;
         private AdminRoleStatus adminRoleStatus;
+        private boolean superAdmin;
         private Contact contact;
         private List<Verification> verifications;
 
@@ -149,6 +166,10 @@ public class Administrator {
             this.adminRoleStatus = adminRoleStatus;
             return this;
         }
+        public Builder setSuperAdmin(boolean superAdmin) {
+            this.superAdmin = superAdmin;
+            return this;
+        }
         public Builder setContact(Contact contact) {
             this.contact = contact;
             return this;
@@ -164,6 +185,7 @@ public class Administrator {
             this.adminSurname = admin.getAdminSurname();
             this.adminPassword = admin.getAdminPassword();
             this.adminRoleStatus = admin.getAdminRoleStatus();
+            this.superAdmin = admin.isSuperAdmin();
             this.contact = admin.getContact();
             this.verifications = admin.getVerifications();
             return this;

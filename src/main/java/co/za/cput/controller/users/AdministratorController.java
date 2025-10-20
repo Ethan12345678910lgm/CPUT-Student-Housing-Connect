@@ -3,6 +3,7 @@ package co.za.cput.controller.users;
 import co.za.cput.domain.business.Verification;
 import co.za.cput.domain.users.Administrator;
 import co.za.cput.domain.users.Landlord;
+import co.za.cput.dto.AdminApprovalRequest;
 import co.za.cput.dto.LandlordVerificationRequest;
 import co.za.cput.dto.ListingVerificationRequest;
 import co.za.cput.service.users.implementation.AdministratorServiceImpl;
@@ -35,15 +36,74 @@ public class AdministratorController {
         }
 
         if (administratorService.hasAnyAdministrators()) {
-            Administrator creator = administratorService.authenticateAdmin(creatorAdminId, creatorPassword);
-            if (creator == null) {
+            if (creatorAdminId == null || creatorPassword == null) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
+
+            Administrator creator = administratorService.authenticateAdmin(creatorAdminId, creatorPassword);
+            if (creator == null || !creator.isSuperAdmin()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            administrator = new Administrator.Builder()
+                    .copy(administrator)
+                    .setSuperAdmin(false)
+                    .build();
         }
 
         Administrator created = administratorService.create(administrator);
         return ResponseEntity.ok(created);
     }
+
+    @PostMapping("/apply")
+    public ResponseEntity<?> apply(@RequestBody Administrator administrator) {
+        if (administrator == null) {
+            return ResponseEntity.badRequest().body("Administrator application is required.");
+        }
+
+        try {
+            Administrator created = administratorService.submitApplication(administrator);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
+        }
+    }
+
+    @GetMapping("/applications")
+    public ResponseEntity<List<Administrator>> listPendingApplications() {
+        List<Administrator> pending = administratorService.getPendingAdministrators();
+        if (pending.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(pending);
+    }
+
+    @PostMapping("/{applicantId}/approve")
+    public ResponseEntity<?> approve(
+            @PathVariable Long applicantId,
+            @RequestBody AdminApprovalRequest request
+    ) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body("Approval request is required.");
+        }
+
+        try {
+            Administrator approved = administratorService.approveAdministrator(
+                    applicantId,
+                    request.getSuperAdminEmail(),
+                    request.getSuperAdminPassword()
+            );
+            return ResponseEntity.ok(approved);
+        } catch (IllegalArgumentException exception) {
+            HttpStatus status = "Invalid super administrator credentials.".equals(exception.getMessage())
+                    ? HttpStatus.FORBIDDEN
+                    : HttpStatus.BAD_REQUEST;
+            if ("Administrator not found.".equals(exception.getMessage())) {
+                status = HttpStatus.NOT_FOUND;
+            }
+            return ResponseEntity.status(status).body(exception.getMessage());
+        }
+    }
+
 
     @GetMapping("/read/{Id}")
     public ResponseEntity<Administrator> read(@PathVariable Long Id) {
