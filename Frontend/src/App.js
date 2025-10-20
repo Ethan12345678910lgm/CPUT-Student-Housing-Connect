@@ -72,14 +72,8 @@ function App() {
               </ProtectedRoute>
             }
         />
-          <Route
-              path="/admin/signup"
-              element={
-                  <ProtectedRoute allowedRoles={["admin"]}>
-                      <AdminSignUp />
-                  </ProtectedRoute>
-              }
-          />
+          <Route path="/admin/signup" element={<AdminSignUp />} />
+
           <Route
             path="/admin/verify-landlords"
             element={

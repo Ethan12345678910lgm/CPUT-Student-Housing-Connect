@@ -70,11 +70,14 @@ public class AdministratorController {
 
     @GetMapping("/applications")
     public ResponseEntity<?> listPendingApplications(
-            @RequestParam("superAdminEmail") String superAdminEmail,
-            @RequestParam("superAdminPassword") String superAdminPassword) {
+            @RequestParam("superAdminId") Long superAdminId) {
+
+        if (superAdminId == null) {
+            return ResponseEntity.badRequest().body("Super administrator id is required.");
+        }
 
         try {
-            List<Administrator> pending = administratorService.getPendingAdministrators(superAdminEmail, superAdminPassword);
+            List<Administrator> pending = administratorService.getPendingAdministrators(superAdminId);
             if (pending.isEmpty()) {
                 return ResponseEntity.noContent().build();
             }
@@ -96,11 +99,14 @@ public class AdministratorController {
             return ResponseEntity.badRequest().body("Approval request is required.");
         }
 
+        if (request.getSuperAdminId() == null) {
+            return ResponseEntity.badRequest().body("Super administrator id is required.");
+        }
+
         try {
             Administrator approved = administratorService.approveAdministrator(
                     applicantId,
-                    request.getSuperAdminEmail(),
-                    request.getSuperAdminPassword()
+                    request.getSuperAdminId()
             );
             return ResponseEntity.ok(approved);
         } catch (IllegalArgumentException exception) {

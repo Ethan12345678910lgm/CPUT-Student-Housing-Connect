@@ -16,9 +16,9 @@ public interface IAdministratorService extends IService<Administrator, Long> {
 
     Administrator submitApplication(Administrator administrator);
 
-    Administrator approveAdministrator(Long applicantId, String superAdminEmail, String superAdminPassword);
+    Administrator approveAdministrator(Long applicantId, Long superAdminId);
 
-    List<Administrator> getPendingAdministrators(String superAdminEmail, String superAdminPassword);
+    List<Administrator> getPendingAdministrators(Long superAdminId);
 
     Landlord verifyLandlord(Long adminId, String adminPassword, Long landlordId, boolean approved);
 

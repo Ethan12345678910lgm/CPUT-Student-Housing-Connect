@@ -53,6 +53,7 @@ export const login = async (role, email, password) => {
         verified: response.verified,
         userId: response.userId,
         adminRoleStatus: response.adminRoleStatus,
+        superAdmin: Boolean(response.superAdmin),
     };
 
     persistUser(sessionUser);

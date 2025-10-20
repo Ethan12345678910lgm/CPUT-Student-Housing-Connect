@@ -1,25 +1,17 @@
 package co.za.cput.dto;
 
 public class AdminApprovalRequest {
-    private String superAdminEmail;
-    private String superAdminPassword;
+    private Long superAdminId;
+
 
     public AdminApprovalRequest() {
     }
 
-    public String getSuperAdminEmail() {
-        return superAdminEmail;
+    public Long getSuperAdminId() {
+        return superAdminId;
     }
 
-    public void setSuperAdminEmail(String superAdminEmail) {
-        this.superAdminEmail = superAdminEmail;
-    }
-
-    public String getSuperAdminPassword() {
-        return superAdminPassword;
-    }
-
-    public void setSuperAdminPassword(String superAdminPassword) {
-        this.superAdminPassword = superAdminPassword;
+    public void setSuperAdminId(Long superAdminId) {
+        this.superAdminId = superAdminId;
     }
 }

@@ -8,12 +8,15 @@ const adminNavItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: FaHome },
     { path: "/admin/verify-landlords", label: "Verify landlords", icon: FaCheckCircle },
     { path: "/admin/verify-listings", label: "Verify listings", icon: FaListAlt },
-    { path: "/admin/signup", label: "Manage admins", icon: FaUserShield },
+    { path: "/admin/signup", label: "Manage admins", icon: FaUserShield, superAdminOnly: true },
 ];
 
 function AdminNavigation() {
     const navigate = useNavigate();
     const user = useMemo(() => getCurrentUser(), []);
+    const visibleNavItems = useMemo(() => {
+        return adminNavItems.filter((item) => !item.superAdminOnly || user?.superAdmin);
+    }, [user]);
 
     const handleLogout = useCallback(() => {
         logout();
@@ -30,7 +33,7 @@ function AdminNavigation() {
                 </Link>
 
                 <nav aria-label="Administrator navigation" className="admin-nav-links">
-                    {adminNavItems.map((item) => (
+                    {visibleNavItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}

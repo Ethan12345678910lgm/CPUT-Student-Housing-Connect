@@ -137,10 +137,11 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
-    public Administrator approveAdministrator(Long applicantId, String superAdminEmail, String superAdminPassword) {
-        Administrator superAdministrator = authenticateSuperAdmin(superAdminEmail, superAdminPassword);
-        if (superAdministrator == null) {
-            throw new IllegalArgumentException("Invalid super administrator credentials.");
+    ppublic Administrator approveAdministrator(Long applicantId, Long superAdminId) {
+        requireSuperAdministrator(superAdminId);
+
+        if (applicantId == null) {
+            throw new IllegalArgumentException("Administrator not found.");
         }
 
         Administrator applicant = administratorRepository.findById(applicantId)
@@ -159,12 +160,8 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
-    public List<Administrator> getPendingAdministrators(String superAdminEmail, String superAdminPassword) {
-        Administrator superAdministrator = authenticateSuperAdmin(superAdminEmail, superAdminPassword);
-        if (superAdministrator == null) {
-            throw new IllegalArgumentException("Invalid super administrator credentials.");
-        }
-
+    public List<Administrator> getPendingAdministrators(Long superAdminId) {
+        requireSuperAdministrator(superAdminId);
         return administratorRepository.findByAdminRoleStatus(Administrator.AdminRoleStatus.INACTIVE);
     }
 
@@ -180,18 +177,17 @@ public class AdministratorServiceImpl implements IAdministratorService {
                 .orElse(null);
     }
 
-    private Administrator authenticateSuperAdmin(String email, String password) {
-        if (Helper.isNullorEmpty(email) || Helper.isNullorEmpty(password)) {
-            return null;
+    private Administrator requireSuperAdministrator(Long superAdminId) {
+        if (superAdminId == null) {
+            throw new IllegalArgumentException("Invalid super administrator credentials.");
         }
 
-        String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+        return administratorRepository.findById(superAdminId)
 
-        return administratorRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail)
                 .filter(Administrator::isSuperAdmin)
                 .filter(admin -> admin.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE)
-                .filter(admin -> passwordMatches(password, admin.getAdminPassword()))
-                .orElse(null);
+                .orElseThrow(() -> new IllegalArgumentException("Invalid super administrator credentials."));
+
     }
 
     @Override
