@@ -6,6 +6,7 @@ package co.za.cput.domain.users;
 
 import co.za.cput.domain.business.Accommodation;
 import co.za.cput.domain.generic.Contact;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
@@ -23,7 +24,8 @@ public class Landlord {
     private String landlordLastName;
     private boolean isVerified; //To indicate if the landlord's identity or business has been verified by admin.
     private LocalDate dateRegistered; //Date the LandLord registered to the system.
-    //private String password;
+    @JsonIgnore
+    private String password;
 
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
@@ -44,7 +46,7 @@ public class Landlord {
         this.landlordLastName = builder.landlordLastName;
         this.isVerified = builder.isVerified;
         this.dateRegistered = builder.dateRegistered;
-        //this.password = builder.password;
+        this.password = builder.password;
         this.contact = builder.contact;
         this.accommodationList = builder.accommodationList != null ? builder.accommodationList : new ArrayList<>();
     }
@@ -89,10 +91,13 @@ public class Landlord {
         return dateRegistered;
     }
 
-    /*public String getPassword() {
+    public String getPassword() {
         return password;
     }
-*/
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
     public Contact getContact() {
         return contact;
     }
@@ -133,7 +138,7 @@ public class Landlord {
         private String landlordLastName;
         private boolean isVerified;
         private LocalDate dateRegistered;
-        //private String password;
+        private String password;
         private Contact contact;
         private List<Accommodation> accommodationList;
 
@@ -162,37 +167,37 @@ public class Landlord {
             return this;
         }
 
-        /*public Builder setPassword(String password) {
+        public Builder setPassword(String password) {
             this.password = password;
             return this;
-        }*/
-
-        public Builder setContact(Contact contact) {
-            this.contact = contact;
-            return this;
-        }
-
-        public Builder setAccommodationList(List<Accommodation> accommodationList) {
-            this.accommodationList = accommodationList;
-            return this;
-        }
-
-        public Landlord.Builder copy(Landlord landlord) {
-            this.landlordID = landlord.getLandlordID();
-            this.landlordFirstName = landlord.getLandlordFirstName();
-            this.landlordLastName = landlord.getLandlordLastName();
-            this.isVerified = landlord.isVerified();
-            this.dateRegistered = landlord.getDateRegistered();
-            //this.password = landlord.getPassword();
-            this.contact = landlord.getContact();
-            this.accommodationList = landlord.getAccommodationList();
-            return this;
-        }
-
-        public Landlord build() {
-            return new Landlord(this);
-        }
     }
+
+    public Builder setContact(Contact contact) {
+        this.contact = contact;
+        return this;
+    }
+
+    public Builder setAccommodationList(List<Accommodation> accommodationList) {
+        this.accommodationList = accommodationList;
+        return this;
+    }
+
+    public Landlord.Builder copy(Landlord landlord) {
+        this.landlordID = landlord.getLandlordID();
+        this.landlordFirstName = landlord.getLandlordFirstName();
+        this.landlordLastName = landlord.getLandlordLastName();
+        this.isVerified = landlord.isVerified();
+        this.dateRegistered = landlord.getDateRegistered();
+        this.password = landlord.getPassword();
+        this.contact = landlord.getContact();
+        this.accommodationList = landlord.getAccommodationList();
+        return this;
+    }
+
+    public Landlord build() {
+        return new Landlord(this);
+    }
+}
 
 }
 

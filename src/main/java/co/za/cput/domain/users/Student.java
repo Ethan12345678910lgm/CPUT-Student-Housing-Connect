@@ -5,6 +5,7 @@ package co.za.cput.domain.users;
 
 import co.za.cput.domain.business.Booking;
 import co.za.cput.domain.generic.Contact;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
@@ -23,7 +24,8 @@ public class Student {
     private String studentSurname;
     private LocalDate dateOfBirth;
     private String gender;
-    //private String password;
+    @JsonIgnore
+    private String password;
     private LocalDateTime registrationDate;
     private boolean isStudentVerified;
 
@@ -55,7 +57,7 @@ public class Student {
         this.studentSurname = builder.studentSurname;
         this.dateOfBirth = builder.dateOfBirth;
         this.gender = builder.gender;
-        //this.password = builder.password;
+        this.password = builder.password;
         this.registrationDate = builder.registrationDate;
         this.isStudentVerified = builder.isStudentVerified;
         this.fundingStatus = builder.fundingStatus;
@@ -99,9 +101,10 @@ public class Student {
         return gender;
     }
 
-   /* public String getPassword() {
+    public String getPassword() {
         return password;
-    }*/
+    }
+
 
     public void setPassword(String password) {
         this.password = password;
@@ -174,7 +177,7 @@ public class Student {
         private String studentSurname;
         private LocalDate dateOfBirth;
         private String gender;
-        //private String password;
+        private String password;
         private LocalDateTime registrationDate;
         private boolean isStudentVerified;
         private FundingStatus fundingStatus;
@@ -206,10 +209,10 @@ public class Student {
             return this;
         }
 
-        /*public Builder setPassword(String password) {
+        public Builder setPassword(String password) {
             this.password = password;
             return this;
-        }*/
+        }
 
         public Builder setRegistrationDate(LocalDateTime registrationDate) {
             this.registrationDate = registrationDate;
