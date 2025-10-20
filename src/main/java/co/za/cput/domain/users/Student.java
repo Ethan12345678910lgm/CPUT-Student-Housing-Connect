@@ -157,17 +157,15 @@ public class Student {
     @Override
     public String toString() {
         return "Student{" +
-                "studentID='" + getStudentID() + '\n' +
-                ", studentName='" + getStudentName() + '\n' +
-                ", studentSurname='" + getStudentSurname() + '\n' +
-                ", dateOfBirth=" + getDateOfBirth() + '\n' +
+                "studentID=" + getStudentID() +
+                ", studentName='" + getStudentName() + '\'' +
+                ", studentSurname='" + getStudentSurname() + '\'' +
+                ", dateOfBirth=" + getDateOfBirth() +
                 ", gender='" + getGender() + '\'' +
-                //", password='" + getPassword() + '\n' +
-                ", registrationDate=" + getRegistrationDate() + '\n' +
-                ", isStudentVerified=" + getIsStudentVerified() + '\n' +
-                ", fundingStatus=" + getFundingStatus() + '\n' +
-                ", Contacts=" + getContact() + '\n' +
-                //", Bookings=" + getBookings() + '\n' +
+                ", registrationDate=" + getRegistrationDate() +
+                ", isStudentVerified=" + getIsStudentVerified() +
+                ", fundingStatus=" + getFundingStatus() +
+                ", Contacts=" + getContact() +
                 '}';
     }
 
