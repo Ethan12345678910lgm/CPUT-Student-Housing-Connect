@@ -23,7 +23,8 @@ export const listApplicationsForLandlord = async (landlordId) => {
     }
 
     const response = await apiClient.get(`/bookings/landlord/${landlordId}`);
-    return Array.isArray(response) ? response : [];};
+    return Array.isArray(response) ? response : [];
+};
 
 export const listApplicationsForStudent = async (studentId) => {
 
@@ -60,12 +61,30 @@ export const listBookings = async (filters = {}) => {
     return Array.isArray(response) ? response : [];
 };
 
+export const fetchBooking = async (bookingId) => {
+    if (!bookingId) {
+        throw new Error("A booking identifier is required to fetch booking details.");
+    }
+
+    return apiClient.get(`/bookings/read/${bookingId}`);
+};
+
+export const updateBooking = async (booking) => {
+    if (!booking?.bookingID) {
+        throw new Error("A booking identifier is required to update the booking.");
+    }
+
+    return apiClient.put("/bookings/update", booking);
+};
+
 const bookingService = {
     applyForListing,
     listApplicationsForLandlord,
     listApplicationsForStudent,
     updateApplicationStatus,
     listBookings,
+    fetchBooking,
+    updateBooking,
 };
 
 export default bookingService;
