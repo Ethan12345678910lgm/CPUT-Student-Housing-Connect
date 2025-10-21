@@ -71,11 +71,16 @@ public class AuthenticationService {
         boolean administratorCredentialsMatched = false;
         if (administrator != null && passwordMatches(password, administrator.getAdminPassword())) {
             administratorCredentialsMatched = true;
-            if (administrator.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE) {
-                pendingAdministratorMessage = "Your administrator account is awaiting approval.";
+            Administrator.AdminRoleStatus roleStatus = administrator.getAdminRoleStatus();
+            if (roleStatus == Administrator.AdminRoleStatus.ACTIVE) {
+                loginRateLimiter.resetAttempts(normalisedEmail);
+                return LoginResponse.successForAdministrator(administrator);
             }
-            loginRateLimiter.resetAttempts(normalisedEmail);
-            return LoginResponse.successForAdministrator(administrator);
+
+            if (roleStatus == Administrator.AdminRoleStatus.SUSPENDED) {
+                pendingAdministratorMessage = "Your administrator account has been suspended.";
+            } else {                pendingAdministratorMessage = "Your administrator account is awaiting approval.";
+            }
         }
 
         Landlord landlord = landLordRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
