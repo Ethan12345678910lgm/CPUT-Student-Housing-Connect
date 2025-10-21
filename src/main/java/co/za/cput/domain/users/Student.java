@@ -5,8 +5,8 @@ package co.za.cput.domain.users;
 
 import co.za.cput.domain.business.Booking;
 import co.za.cput.domain.generic.Contact;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -24,7 +24,7 @@ public class Student {
     private String studentSurname;
     private LocalDate dateOfBirth;
     private String gender;
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @JsonIgnore
     private String password;
     private LocalDateTime registrationDate;
     private boolean isStudentVerified;

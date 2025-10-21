@@ -6,8 +6,8 @@ package co.za.cput.domain.users;
 
 import co.za.cput.domain.business.Accommodation;
 import co.za.cput.domain.generic.Contact;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -24,7 +24,7 @@ public class Landlord {
     private String landlordLastName;
     private boolean isVerified; //To indicate if the landlord's identity or business has been verified by admin.
     private LocalDate dateRegistered; //Date the LandLord registered to the system.
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @JsonIgnore
     private String password;
 
 
@@ -170,34 +170,34 @@ public class Landlord {
         public Builder setPassword(String password) {
             this.password = password;
             return this;
-        }
-
-        public Builder setContact(Contact contact) {
-            this.contact = contact;
-            return this;
-        }
-
-        public Builder setAccommodationList(List<Accommodation> accommodationList) {
-            this.accommodationList = accommodationList;
-            return this;
-        }
-
-        public Landlord.Builder copy(Landlord landlord) {
-            this.landlordID = landlord.getLandlordID();
-            this.landlordFirstName = landlord.getLandlordFirstName();
-            this.landlordLastName = landlord.getLandlordLastName();
-            this.isVerified = landlord.isVerified();
-            this.dateRegistered = landlord.getDateRegistered();
-            this.password = landlord.getPassword();
-            this.contact = landlord.getContact();
-            this.accommodationList = landlord.getAccommodationList();
-            return this;
-        }
-
-        public Landlord build() {
-            return new Landlord(this);
-        }
     }
+
+    public Builder setContact(Contact contact) {
+        this.contact = contact;
+        return this;
+    }
+
+    public Builder setAccommodationList(List<Accommodation> accommodationList) {
+        this.accommodationList = accommodationList;
+        return this;
+    }
+
+    public Landlord.Builder copy(Landlord landlord) {
+        this.landlordID = landlord.getLandlordID();
+        this.landlordFirstName = landlord.getLandlordFirstName();
+        this.landlordLastName = landlord.getLandlordLastName();
+        this.isVerified = landlord.isVerified();
+        this.dateRegistered = landlord.getDateRegistered();
+        this.password = landlord.getPassword();
+        this.contact = landlord.getContact();
+        this.accommodationList = landlord.getAccommodationList();
+        return this;
+    }
+
+    public Landlord build() {
+        return new Landlord(this);
+    }
+}
 
 }
 
@@ -232,7 +232,7 @@ public class Landlord {
                 "streetName": "Dorset Street",
                 "suburb": "Salt River",
                 "city": "Cape Town",
-                "postalCode": 7925"
+                "postalCode": 7925
             }
         }
     ]
