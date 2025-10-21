@@ -67,9 +67,12 @@ public class AuthenticationService {
         }
 
         Administrator administrator = administratorRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
+        String pendingAdministratorMessage = null;
+        boolean administratorCredentialsMatched = false;
         if (administrator != null && passwordMatches(password, administrator.getAdminPassword())) {
-            if (administrator.getAdminRoleStatus() != Administrator.AdminRoleStatus.ACTIVE) {
-                return LoginResponse.failure("Your administrator account is awaiting approval.");
+            administratorCredentialsMatched = true;
+            if (administrator.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE) {
+                pendingAdministratorMessage = "Your administrator account is awaiting approval.";
             }
             loginRateLimiter.resetAttempts(normalisedEmail);
             return LoginResponse.successForAdministrator(administrator);
@@ -85,6 +88,16 @@ public class AuthenticationService {
         if (student != null && passwordMatches(password, student.getPassword())) {
             loginRateLimiter.resetAttempts(normalisedEmail);
             return LoginResponse.successForStudent(student);
+        }
+
+        if (pendingAdministratorMessage != null) {
+            loginRateLimiter.resetAttempts(normalisedEmail);
+            return LoginResponse.failure(pendingAdministratorMessage);
+        }
+
+        if (administratorCredentialsMatched) {
+            loginRateLimiter.resetAttempts(normalisedEmail);
+            return LoginResponse.failure("Invalid email or password.");
         }
 
         loginRateLimiter.recordFailedAttempt(normalisedEmail);
