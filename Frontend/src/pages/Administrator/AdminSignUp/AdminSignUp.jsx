@@ -7,7 +7,7 @@ import {
     FaPhone,
     FaShieldAlt,
     FaSync,
-    FaTimesCircle,
+    FaUserLock,
     FaUserPlus,
 } from "react-icons/fa";
 import AdminNavigation from "../../../components/admin/AdminNavigation";
@@ -15,7 +15,6 @@ import {
     applyForAdministrator,
     approveAdminApplication,
     fetchPendingAdminApplications,
-    rejectAdminApplication,
 } from "../../../services/adminService";
 import { getCurrentUser } from "../../../services/authService";
 
@@ -82,11 +81,11 @@ const buttonStyles = {
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
 };
 
-const dangerButtonStyles = {
+const secondaryButtonStyles = {
     ...buttonStyles,
     background: "transparent",
-    color: "#dc2626",
-    border: "1px solid rgba(220, 38, 38, 0.35)",
+    color: "#3056d3",
+    border: "1px solid rgba(48, 86, 211, 0.35)",
 };
 
 const badgeStyles = {
@@ -163,9 +162,8 @@ function AdminSignUp() {
 
     const [pendingRequests, setPendingRequests] = useState([]);
     const [pendingError, setPendingError] = useState("");
-    const [pendingSuccess, setPendingSuccess] = useState("");
     const [isLoadingPending, setIsLoadingPending] = useState(false);
-    const [processingState, setProcessingState] = useState({ id: null, action: null });
+    const [processingId, setProcessingId] = useState(null);
     const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
@@ -177,7 +175,6 @@ function AdminSignUp() {
         const loadPending = async () => {
             setIsLoadingPending(true);
             setPendingError("");
-            setPendingSuccess("");
             try {
                 const applications = await fetchPendingAdminApplications(currentUser.userId);
                 if (isMounted) {
@@ -273,37 +270,16 @@ function AdminSignUp() {
         }
     };
 
-    const handleApprove = async (application) => {
+    const handleApprove = async (applicantId) => {
         setPendingError("");
-        setPendingSuccess("");
-        setProcessingState({ id: application.adminID, action: "approve" });
+        setProcessingId(applicantId);
         try {
-            await approveAdminApplication(application.adminID, currentUser.userId);
-            setPendingRequests((previous) => previous.filter((request) => request.adminID !== application.adminID));
-            const applicantName =
-                [application.adminName, application.adminSurname].filter(Boolean).join(" ") || "The administrator";
-            setPendingSuccess(`${applicantName} has been approved as an administrator.`);
+            await approveAdminApplication(applicantId, currentUser.userId);
+            setPendingRequests((previous) => previous.filter((request) => request.adminID !== applicantId));
         } catch (error) {
             setPendingError(error.message || "Unable to approve the selected administrator.");
         } finally {
-            setProcessingState({ id: null, action: null });
-        }
-    };
-
-    const handleReject = async (application) => {
-        setPendingError("");
-        setPendingSuccess("");
-        setProcessingState({ id: application.adminID, action: "reject" });
-        try {
-            await rejectAdminApplication(application.adminID, currentUser.userId);
-            setPendingRequests((previous) => previous.filter((request) => request.adminID !== application.adminID));
-            const applicantName =
-                [application.adminName, application.adminSurname].filter(Boolean).join(" ") || "The application";
-            setPendingSuccess(`${applicantName} has been declined.`);
-        } catch (error) {
-            setPendingError(error.message || "Unable to decline the selected administrator application.");
-        } finally {
-            setProcessingState({ id: null, action: null });
+            setProcessingId(null);
         }
     };
 
@@ -446,6 +422,11 @@ function AdminSignUp() {
                 <span style={{ ...badgeStyles, backgroundColor: "rgba(16, 185, 129, 0.12)", color: "#0f766e" }}>
                     <FaShieldAlt aria-hidden="true" /> Super administrator controls
                 </span>
+                <h1 style={{ fontSize: "28px", margin: 0 }}>Administrator applications</h1>
+                <p style={{ margin: 0, color: "#475569" }}>
+                    Review and approve new administrator applications. Only verified administrators will gain access
+                    to the management console.
+                </p>
             </div>
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
@@ -463,7 +444,6 @@ function AdminSignUp() {
             </div>
 
             {pendingError && <div style={errorStyles}>{pendingError}</div>}
-            {pendingSuccess && <div style={successStyles}>{pendingSuccess}</div>}
 
             {isLoadingPending ? (
                 <p style={{ color: "#475569" }}>Loading pending administrator applications...</p>
@@ -489,42 +469,37 @@ function AdminSignUp() {
                             <tr key={request.adminID}>
                                 <td style={tableCellStyles}>
                                     <div style={{ display: "grid", gap: "4px" }}>
-                                        <span style={{ fontWeight: 600 }}>
-                                            {[request.adminName, request.adminSurname].filter(Boolean).join(" ")}
-                                        </span>
+                                            <span style={{ fontWeight: 600 }}>
+                                                {[request.adminName, request.adminSurname].filter(Boolean).join(" ")}
+                                            </span>
                                         <span style={{ fontSize: "12px", color: "#64748b" }}>Pending approval</span>
                                     </div>
                                 </td>
                                 <td style={tableCellStyles}>{request.contact?.email || "—"}</td>
                                 <td style={tableCellStyles}>{request.contact?.phoneNumber || "—"}</td>
                                 <td style={tableCellStyles}>
-                                    <span style={{ ...badgeStyles, backgroundColor: "rgba(59, 130, 246, 0.08)", color: "#1d4ed8" }}>
-                                        Awaiting review
-                                    </span>
+                                        <span style={{ ...badgeStyles, backgroundColor: "rgba(59, 130, 246, 0.08)", color: "#1d4ed8" }}>
+                                            Awaiting review
+                                        </span>
                                 </td>
                                 <td style={tableCellStyles}>
                                     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                                         <button
                                             type="button"
                                             style={buttonStyles}
-                                            onClick={() => handleApprove(request)}
-                                            disabled={processingState.id === request.adminID}
+                                            onClick={() => handleApprove(request.adminID)}
+                                            disabled={processingId === request.adminID}
                                         >
                                             <FaCheckCircle aria-hidden="true" />
-                                            {processingState.id === request.adminID && processingState.action === "approve"
-                                                ? "Approving..."
-                                                : "Approve"}
+                                            {processingId === request.adminID ? "Approving..." : "Approve"}
                                         </button>
                                         <button
                                             type="button"
-                                            style={dangerButtonStyles}
-                                            onClick={() => handleReject(request)}
-                                            disabled={processingState.id === request.adminID}
+                                            style={secondaryButtonStyles}
+                                            disabled
+                                            title="Rejections will be supported in a future update"
                                         >
-                                            <FaTimesCircle aria-hidden="true" />
-                                            {processingState.id === request.adminID && processingState.action === "reject"
-                                                ? "Declining..."
-                                                : "Decline"}
+                                            <FaUserLock aria-hidden="true" /> Reject
                                         </button>
                                     </div>
                                 </td>

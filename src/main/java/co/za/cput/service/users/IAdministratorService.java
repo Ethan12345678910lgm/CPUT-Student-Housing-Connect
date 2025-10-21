@@ -18,8 +18,6 @@ public interface IAdministratorService extends IService<Administrator, Long> {
 
     Administrator approveAdministrator(Long applicantId, Long superAdminId);
 
-    Administrator rejectAdministrator(Long applicantId, Long superAdminId);
-
     List<Administrator> getPendingAdministrators(Long superAdminId);
 
     Landlord verifyLandlord(Long adminId, String adminPassword, Long landlordId, boolean approved);
