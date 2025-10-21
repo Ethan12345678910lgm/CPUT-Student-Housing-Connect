@@ -56,7 +56,9 @@ const badgeStyles = {
 
 function Dashboard() {
     const currentUser = useMemo(() => getCurrentUser(), []);
+    const userRole = currentUser?.role ? String(currentUser.role).toLowerCase() : "";
     const isSuperAdmin = Boolean(currentUser?.superAdmin);
+    const isAdministrator = userRole === "admin";
     const superAdminId = currentUser?.userId;
 
     const [timeframe, setTimeframe] = useState("monthly");
@@ -69,13 +71,37 @@ function Dashboard() {
     const [processingAdmins, setProcessingAdmins] = useState({});
     const [actionFeedback, setActionFeedback] = useState("");
     const [actionError, setActionError] = useState("");
+    const [hasSuperAdminAccess, setHasSuperAdminAccess] = useState(isSuperAdmin);
+
+    useEffect(() => {
+        setHasSuperAdminAccess(isSuperAdmin);
+    }, [isSuperAdmin]);
 
     const loadPendingAdmins = useCallback(
         async ({ showLoader = true, preserveActionMessages = false, signal } = {}) => {
-            if (!isSuperAdmin || !superAdminId) {
+            if (!isAdministrator) {
                 if (!signal?.aborted) {
                     setPendingAdmins([]);
                     setPendingAdminsError("");
+                    setHasSuperAdminAccess(isSuperAdmin);
+                    if (!preserveActionMessages) {
+                        setActionFeedback("");
+                        setActionError("");
+                    }
+                }
+                if (!signal?.aborted && showLoader) {
+                    setIsPendingAdminsLoading(false);
+                }
+                return;
+            }
+
+            if (!superAdminId) {
+                if (!signal?.aborted) {
+                    setPendingAdmins([]);
+                    setPendingAdminsError(
+                        "Unable to determine the active administrator account. Please sign in again.",
+                    );
+                    setHasSuperAdminAccess(false);
                     if (!preserveActionMessages) {
                         setActionFeedback("");
                         setActionError("");
@@ -102,13 +128,32 @@ function Dashboard() {
             try {
                 const pending = await fetchPendingAdminApplications(superAdminId);
                 if (!signal?.aborted) {
+                    setHasSuperAdminAccess(true);
                     setPendingAdmins(Array.isArray(pending) ? pending : []);
                 }
             } catch (error) {
                 if (!signal?.aborted) {
-                    setPendingAdminsError(
-                        error?.message || "Unable to load pending administrator applications.",
-                    );
+                    const rawMessage = typeof error?.message === "string" ? error.message : "";
+                    const normalizedMessage = rawMessage.toLowerCase();
+                    const fallbackMessage = "Unable to load pending administrator applications.";
+                    const forbidden =
+                        normalizedMessage.includes("invalid super administrator credentials") ||
+                        normalizedMessage.includes("forbidden") ||
+                        normalizedMessage.includes("status 403");
+
+                    if (forbidden) {
+                        setHasSuperAdminAccess(false);
+                        setPendingAdmins([]);
+                        setPendingAdminsError(
+                            "You need super administrator access to review administrator applications.",
+                        );
+                        if (!preserveActionMessages) {
+                            setActionFeedback("");
+                            setActionError("");
+                        }
+                    } else {
+                        setPendingAdminsError(rawMessage || fallbackMessage);
+                    }
                 }
             } finally {
                 if (!signal?.aborted && showLoader) {
@@ -116,7 +161,7 @@ function Dashboard() {
                 }
             }
         },
-        [isSuperAdmin, superAdminId],
+        [isAdministrator, isSuperAdmin, superAdminId],
     );
 
     useEffect(() => {
@@ -174,7 +219,15 @@ function Dashboard() {
     };
 
     const handleAdminDecision = async (admin, decision) => {
+        if (!hasSuperAdminAccess) {
+            setActionFeedback("");
+            setActionError("You need super administrator access to process administrator applications.");
+            return;
+        }
+
         if (!admin?.adminID || !superAdminId) {
+            setActionFeedback("");
+            setActionError("Unable to process this administrator application. Please refresh and try again.");
             return;
         }
 
@@ -246,6 +299,8 @@ function Dashboard() {
         () => (Array.isArray(pendingAdmins) ? pendingAdmins : []),
         [pendingAdmins],
     );
+
+    const shouldRenderPendingAdminSection = isAdministrator || isSuperAdmin;
 
     const metricSets = useMemo(
         () => ({
@@ -465,7 +520,7 @@ function Dashboard() {
                         </div>
                     </header>
 
-                    {isSuperAdmin && (
+                    {shouldRenderPendingAdminSection && (
                         <section style={{ ...cardStyles, padding: "24px 28px", display: "grid", gap: "18px" }}>
                             <div
                                 style={{
@@ -491,9 +546,11 @@ function Dashboard() {
                                         Review administrator requests awaiting approval before granting console access.
                                     </p>
                                     <span style={{ color: "#64748b", fontSize: "13px" }}>
-                                        {normalizedPendingAdmins.length === 1
-                                            ? "1 pending application"
-                                            : `${normalizedPendingAdmins.length} pending applications`}
+                                        {hasSuperAdminAccess
+                                            ? normalizedPendingAdmins.length === 1
+                                                ? "1 pending application"
+                                                : `${normalizedPendingAdmins.length} pending applications`
+                                            : "Super administrator access required"}
                                     </span>
                                 </div>
                                 <div style={superAdminActionsStyles}>
@@ -516,11 +573,19 @@ function Dashboard() {
                                 </div>
                             </div>
 
-                            {pendingAdminsError && <div style={overviewErrorStyles}>{pendingAdminsError}</div>}
-                            {!pendingAdminsError && actionError && (
-                                <div style={overviewErrorStyles}>{actionError}</div>
+                            {pendingAdminsError && (
+                                <div
+                                    style={hasSuperAdminAccess ? overviewErrorStyles : infoPillStyles}
+                                >
+                                    {pendingAdminsError}
+                                </div>
                             )}
-                            {!pendingAdminsError && actionFeedback && (
+                            {!pendingAdminsError && actionError && (
+                                <div style={hasSuperAdminAccess ? overviewErrorStyles : infoPillStyles}>
+                                    {actionError}
+                                </div>
+                            )}
+                            {!pendingAdminsError && hasSuperAdminAccess && actionFeedback && (
                                 <div style={successPillStyles}>{actionFeedback}</div>
                             )}
 
@@ -558,6 +623,7 @@ function Dashboard() {
                                         const isApproving = actionState === "approve";
                                         const isRejecting = actionState === "reject";
                                         const isProcessing = Boolean(actionState);
+                                        const decisionDisabled = isProcessing || !hasSuperAdminAccess;
 
                                         return (
                                             <div key={admin.adminID} style={pendingAdminItemStyles}>
@@ -588,10 +654,15 @@ function Dashboard() {
                                                             onClick={() => handleAdminDecision(admin, "approve")}
                                                             style={{
                                                                 ...approvePendingAdminButtonStyles,
-                                                                opacity: isApproving ? 0.7 : 1,
-                                                                cursor: isProcessing ? "not-allowed" : "pointer",
+                                                                opacity: isApproving || !hasSuperAdminAccess ? 0.7 : 1,
+                                                                cursor: decisionDisabled ? "not-allowed" : "pointer",
                                                             }}
-                                                            disabled={isProcessing}
+                                                            disabled={decisionDisabled}
+                                                            title={
+                                                                !hasSuperAdminAccess
+                                                                    ? "Super administrator access required"
+                                                                    : undefined
+                                                            }
                                                         >
                                                             <FaCheck size={12} />
                                                             {isApproving ? "Accepting..." : "Accept"}
@@ -601,10 +672,15 @@ function Dashboard() {
                                                             onClick={() => handleAdminDecision(admin, "reject")}
                                                             style={{
                                                                 ...rejectPendingAdminButtonStyles,
-                                                                opacity: isRejecting ? 0.7 : 1,
-                                                                cursor: isProcessing ? "not-allowed" : "pointer",
+                                                                opacity: isRejecting || !hasSuperAdminAccess ? 0.7 : 1,
+                                                                cursor: decisionDisabled ? "not-allowed" : "pointer",
                                                             }}
-                                                            disabled={isProcessing}
+                                                            disabled={decisionDisabled}
+                                                            title={
+                                                                !hasSuperAdminAccess
+                                                                    ? "Super administrator access required"
+                                                                    : undefined
+                                                            }
                                                         >
                                                             <FaTimes size={12} />
                                                             {isRejecting ? "Declining..." : "Decline"}
@@ -945,6 +1021,14 @@ const successPillStyles = {
     borderRadius: "14px",
     backgroundColor: "rgba(16, 185, 129, 0.16)",
     color: "#0f766e",
+    fontWeight: 600,
+};
+
+const infoPillStyles = {
+    padding: "16px",
+    borderRadius: "14px",
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
+    color: "#1d4ed8",
     fontWeight: 600,
 };
 
