@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
     FaBell,
-    FaCheck,
     FaClipboardCheck,
     FaClipboardList,
     FaClock,
@@ -11,18 +10,11 @@ import {
     FaChartLine,
     FaSearch,
     FaShieldAlt,
-    FaSync,
-    FaTimes,
     FaUserCheck,
     FaUserShield,
     FaUsers,
 } from "react-icons/fa";
-import {
-    approveAdminApplication,
-    fetchDashboardOverview,
-    fetchPendingAdminApplications,
-    rejectAdminApplication,
-} from "../../../services/adminService";
+import { fetchDashboardOverview, fetchPendingAdminApplications } from "../../../services/adminService";
 import AdminNavigation from "../../../components/admin/AdminNavigation";
 import { getCurrentUser } from "../../../services/authService";
 
@@ -66,58 +58,6 @@ function Dashboard() {
     const [pendingAdmins, setPendingAdmins] = useState([]);
     const [isPendingAdminsLoading, setIsPendingAdminsLoading] = useState(false);
     const [pendingAdminsError, setPendingAdminsError] = useState("");
-    const [processingAdmins, setProcessingAdmins] = useState({});
-    const [actionFeedback, setActionFeedback] = useState("");
-    const [actionError, setActionError] = useState("");
-
-    const loadPendingAdmins = useCallback(
-        async ({ showLoader = true, preserveActionMessages = false, signal } = {}) => {
-            if (!isSuperAdmin || !superAdminId) {
-                if (!signal?.aborted) {
-                    setPendingAdmins([]);
-                    setPendingAdminsError("");
-                    if (!preserveActionMessages) {
-                        setActionFeedback("");
-                        setActionError("");
-                    }
-                }
-                if (!signal?.aborted && showLoader) {
-                    setIsPendingAdminsLoading(false);
-                }
-                return;
-            }
-
-            if (!signal?.aborted && !preserveActionMessages) {
-                setActionFeedback("");
-                setActionError("");
-            }
-
-            if (!signal?.aborted) {
-                setPendingAdminsError("");
-                if (showLoader) {
-                    setIsPendingAdminsLoading(true);
-                }
-            }
-
-            try {
-                const pending = await fetchPendingAdminApplications(superAdminId);
-                if (!signal?.aborted) {
-                    setPendingAdmins(Array.isArray(pending) ? pending : []);
-                }
-            } catch (error) {
-                if (!signal?.aborted) {
-                    setPendingAdminsError(
-                        error?.message || "Unable to load pending administrator applications.",
-                    );
-                }
-            } finally {
-                if (!signal?.aborted && showLoader) {
-                    setIsPendingAdminsLoading(false);
-                }
-            }
-        },
-        [isSuperAdmin, superAdminId],
-    );
 
     useEffect(() => {
         const resolveOverview = async () => {
@@ -135,86 +75,42 @@ function Dashboard() {
     }, []);
 
     useEffect(() => {
-        const controller = new AbortController();
-        loadPendingAdmins({ signal: controller.signal });
-        return () => controller.abort();
-    }, [loadPendingAdmins]);
-
-    const getAdminDisplayName = (admin) => {
-        if (!admin) {
-            return "administrator";
-        }
-
-        const fullName = [admin.adminName, admin.adminSurname]
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-
-        if (fullName) {
-            return fullName;
-        }
-
-        if (admin?.contact?.email) {
-            return admin.contact.email;
-        }
-
-        if (admin?.contact?.phoneNumber) {
-            return admin.contact.phoneNumber;
-        }
-
-        if (admin?.adminEmail) {
-            return admin.adminEmail;
-        }
-
-        if (admin?.adminID) {
-            return `administrator #${admin.adminID}`;
-        }
-
-        return "administrator";
-    };
-
-    const handleAdminDecision = async (admin, decision) => {
-        if (!admin?.adminID || !superAdminId) {
+        if (!isSuperAdmin || !superAdminId) {
+            setPendingAdmins([]);
+            setPendingAdminsError("");
             return;
         }
 
-        setActionFeedback("");
-        setActionError("");
-        setProcessingAdmins((previous) => ({ ...previous, [admin.adminID]: decision }));
+        let isMounted = true;
 
-        const displayName = getAdminDisplayName(admin);
+        const loadPendingAdmins = async () => {
+            setIsPendingAdminsLoading(true);
+            setPendingAdminsError("");
 
-        try {
-            if (decision === "approve") {
-                await approveAdminApplication(admin.adminID, superAdminId);
-                setActionFeedback(`Accepted administrator application from ${displayName}.`);
-            } else {
-                await rejectAdminApplication(admin.adminID, superAdminId);
-                setActionFeedback(`Declined administrator application from ${displayName}.`);
+            try {
+                const pending = await fetchPendingAdminApplications(superAdminId);
+                if (isMounted) {
+                    setPendingAdmins(Array.isArray(pending) ? pending : []);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setPendingAdminsError(
+                        error.message || "Unable to load pending administrator applications.",
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setIsPendingAdminsLoading(false);
+                }
             }
+        };
 
-            setPendingAdmins((previous) =>
-                Array.isArray(previous)
-                    ? previous.filter((candidate) => candidate.adminID !== admin.adminID)
-                    : [],
-            );
+        loadPendingAdmins();
 
-            await loadPendingAdmins({ showLoader: false, preserveActionMessages: true });
-        } catch (error) {
-            const fallbackMessage =
-                decision === "approve"
-                    ? `Unable to accept administrator request for ${displayName}.`
-                    : `Unable to decline administrator request for ${displayName}.`;
-
-            setActionError(error?.message ? `${fallbackMessage} ${error.message}` : fallbackMessage);
-        } finally {
-            setProcessingAdmins((previous) => {
-                const next = { ...previous };
-                delete next[admin.adminID];
-                return next;
-            });
-        }
-    };
+        return () => {
+            isMounted = false;
+        };
+    }, [isSuperAdmin, superAdminId]);
 
     const overviewMetrics = useMemo(() => {
         if (!overview) return [];
@@ -242,10 +138,12 @@ function Dashboard() {
         return `${value.toFixed(2)}% occupancy`;
     }, [overview]);
 
-    const normalizedPendingAdmins = useMemo(
-        () => (Array.isArray(pendingAdmins) ? pendingAdmins : []),
-        [pendingAdmins],
-    );
+    const pendingAdminsPreview = useMemo(() => {
+        if (!Array.isArray(pendingAdmins)) {
+            return [];
+        }
+        return pendingAdmins.slice(0, 4);
+    }, [pendingAdmins]);
 
     const metricSets = useMemo(
         () => ({
@@ -490,78 +388,34 @@ function Dashboard() {
                                     <p style={{ margin: 0, color: "#475569" }}>
                                         Review administrator requests awaiting approval before granting console access.
                                     </p>
-                                    <span style={{ color: "#64748b", fontSize: "13px" }}>
-                                        {normalizedPendingAdmins.length === 1
-                                            ? "1 pending application"
-                                            : `${normalizedPendingAdmins.length} pending applications`}
-                                    </span>
                                 </div>
-                                <div style={superAdminActionsStyles}>
-                                    <button
-                                        type="button"
-                                        onClick={() => loadPendingAdmins({ preserveActionMessages: true })}
-                                        style={{
-                                            ...refreshPendingAdminButtonStyles,
-                                            opacity: isPendingAdminsLoading ? 0.75 : 1,
-                                            cursor: isPendingAdminsLoading ? "not-allowed" : "pointer",
-                                        }}
-                                        disabled={isPendingAdminsLoading}
-                                    >
-                                        <FaSync size={12} />
-                                        {isPendingAdminsLoading ? "Refreshing..." : "Refresh"}
-                                    </button>
-                                    <Link to="/admin/signup" style={manageApplicationsLinkStyles}>
-                                        <FaClipboardList size={14} /> Manage applications
-                                    </Link>
-                                </div>
+                                <Link to="/admin/signup" style={manageApplicationsLinkStyles}>
+                                    <FaClipboardList size={14} /> Manage applications
+                                </Link>
                             </div>
 
                             {pendingAdminsError && <div style={overviewErrorStyles}>{pendingAdminsError}</div>}
-                            {!pendingAdminsError && actionError && (
-                                <div style={overviewErrorStyles}>{actionError}</div>
-                            )}
-                            {!pendingAdminsError && actionFeedback && (
-                                <div style={successPillStyles}>{actionFeedback}</div>
-                            )}
 
                             {isPendingAdminsLoading ? (
                                 <div style={loadingPillStyles}>Loading administrator applications...</div>
-                            ) : normalizedPendingAdmins.length === 0 ? (
+                            ) : pendingAdminsPreview.length === 0 ? (
                                 <div style={successPillStyles}>
                                     All administrator applications are up to date.
                                 </div>
                             ) : (
                                 <div style={{ display: "grid", gap: "12px" }}>
-                                    {normalizedPendingAdmins.map((admin) => {
-                                        const displayName = getAdminDisplayName(admin);
-                                        const email = admin?.contact?.email || admin?.adminEmail;
-                                        const phoneNumber = admin?.contact?.phoneNumber;
-                                        const reference = admin?.adminID;
-                                        const submittedAt = admin?.createdAt || admin?.submittedAt || admin?.appliedAt;
-
-                                        let submittedDetail = null;
-                                        if (submittedAt) {
-                                            const parsedDate = new Date(submittedAt);
-                                            if (!Number.isNaN(parsedDate.getTime())) {
-                                                submittedDetail = `Submitted ${parsedDate.toLocaleString()}`;
-                                            }
-                                        }
-
-                                        const metaDetails = [
-                                            reference ? `Application #${reference}` : null,
-                                            email ? `Email: ${email}` : null,
-                                            phoneNumber ? `Phone: ${phoneNumber}` : null,
-                                            submittedDetail,
+                                    {pendingAdminsPreview.map((admin) => {
+                                        const fullName = [admin.adminName, admin.adminSurname]
+                                            .filter(Boolean)
+                                            .join(" ");
+                                        const contactDetails = [
+                                            admin?.contact?.email ? `Email: ${admin.contact.email}` : null,
+                                            admin?.contact?.phoneNumber ? `Phone: ${admin.contact.phoneNumber}` : null,
                                         ].filter(Boolean);
-
-                                        const actionState = processingAdmins[admin.adminID];
-                                        const isApproving = actionState === "approve";
-                                        const isRejecting = actionState === "reject";
-                                        const isProcessing = Boolean(actionState);
 
                                         return (
                                             <div key={admin.adminID} style={pendingAdminItemStyles}>
-                                                <div style={{ display: "grid", gap: "12px" }}>
+                                                <div style={{ display: "grid", gap: "8px" }}>
                                                     <div
                                                         style={{
                                                             display: "flex",
@@ -570,50 +424,33 @@ function Dashboard() {
                                                             flexWrap: "wrap",
                                                         }}
                                                     >
-                                                        <strong style={{ fontSize: "16px" }}>{displayName}</strong>
+                                                        <strong style={{ fontSize: "16px" }}>
+                                                            {fullName || "Pending administrator"}
+                                                        </strong>
                                                         <span style={pendingAdminBadgeStyles}>
                                                             <FaClock size={12} /> Awaiting approval
                                                         </span>
                                                     </div>
                                                     <div style={pendingAdminMetaStyles}>
-                                                        {metaDetails.length > 0 ? (
-                                                            metaDetails.map((detail) => <span key={detail}>{detail}</span>)
+                                                        {contactDetails.length > 0 ? (
+                                                            contactDetails.map((detail) => (
+                                                                <span key={detail}>{detail}</span>
+                                                            ))
                                                         ) : (
-                                                            <span>No additional details provided</span>
+                                                            <span>No contact details submitted</span>
                                                         )}
-                                                    </div>
-                                                    <div style={pendingAdminActionsStyles}>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAdminDecision(admin, "approve")}
-                                                            style={{
-                                                                ...approvePendingAdminButtonStyles,
-                                                                opacity: isApproving ? 0.7 : 1,
-                                                                cursor: isProcessing ? "not-allowed" : "pointer",
-                                                            }}
-                                                            disabled={isProcessing}
-                                                        >
-                                                            <FaCheck size={12} />
-                                                            {isApproving ? "Accepting..." : "Accept"}
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAdminDecision(admin, "reject")}
-                                                            style={{
-                                                                ...rejectPendingAdminButtonStyles,
-                                                                opacity: isRejecting ? 0.7 : 1,
-                                                                cursor: isProcessing ? "not-allowed" : "pointer",
-                                                            }}
-                                                            disabled={isProcessing}
-                                                        >
-                                                            <FaTimes size={12} />
-                                                            {isRejecting ? "Declining..." : "Decline"}
-                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+
+                            {pendingAdmins.length > pendingAdminsPreview.length && (
+                                <div style={{ fontSize: "13px", color: "#475569" }}>
+                                    Showing {pendingAdminsPreview.length} of {pendingAdmins.length} pending applications. Visit
+                                    Manage applications to review all requests.
                                 </div>
                             )}
                         </section>
@@ -985,60 +822,6 @@ const pendingAdminMetaStyles = {
     flexWrap: "wrap",
     gap: "12px",
     color: "#64748b",
-    fontSize: "13px",
-};
-
-const pendingAdminActionsStyles = {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "10px",
-};
-
-const superAdminActionsStyles = {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: "12px",
-};
-
-const refreshPendingAdminButtonStyles = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    borderRadius: "10px",
-    border: "1px solid rgba(37, 99, 235, 0.35)",
-    background: "rgba(59, 130, 246, 0.08)",
-    color: "#1d4ed8",
-    fontWeight: 600,
-    fontSize: "13px",
-    transition: "background 0.2s ease, box-shadow 0.2s ease",
-};
-
-const approvePendingAdminButtonStyles = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    borderRadius: "10px",
-    border: "none",
-    background: "linear-gradient(135deg, #16a34a, #4ade80)",
-    color: "#ffffff",
-    fontWeight: 600,
-    fontSize: "13px",
-    boxShadow: "0 10px 24px rgba(22, 163, 74, 0.25)",
-};
-
-const rejectPendingAdminButtonStyles = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    borderRadius: "10px",
-    border: "1px solid rgba(248, 113, 113, 0.6)",
-    background: "rgba(248, 113, 113, 0.12)",
-    color: "#b91c1c",
-    fontWeight: 600,
     fontSize: "13px",
 };
 
