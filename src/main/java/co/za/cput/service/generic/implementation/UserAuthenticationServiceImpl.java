@@ -42,7 +42,16 @@ public class UserAuthenticationServiceImpl implements IUserAuthenticationService
 
     @Override
     public void delete(Long Id) {
+        if (Id == null) {
+            return;
+        }
+
+        if (!userAuthenticationRepository.existsById(Id)) {
+            return;
+        }
+
         userAuthenticationRepository.deleteById(Id);
+        userAuthenticationRepository.flush();
     }
 
     @Override

@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import co.za.cput.config.SelectiveNotFoundErrorHandler;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -54,7 +55,9 @@ public class UserAuthenticationController {
     public ResponseEntity<UserAuthentication> read(@PathVariable Long id) {
         UserAuthentication userAuth = userAuthenticationService.read(id);
         if (userAuth == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .header(SelectiveNotFoundErrorHandler.TRIGGER_HEADER, "true")
+                    .build();
         }
         return ResponseEntity.ok(userAuth);
     }
@@ -81,8 +84,14 @@ public class UserAuthenticationController {
     }
 
     @DeleteMapping("/delete/{id}")
-    public void delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        UserAuthentication existing = userAuthenticationService.read(id);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+
         userAuthenticationService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping({"/signup/student", "/api/auth/signup/student"})

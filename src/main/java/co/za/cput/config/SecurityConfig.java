@@ -84,8 +84,9 @@ public class SecurityConfig {
                                         "/Verification/**",
                                         "/HouseConnect/Verification/**",
                                         "/HouseConnect/Administrator/**",
-                                "/api/**"
-                        ).permitAll()
+                                        "/api/**",
+                                        "/error"
+                                ).permitAll()
                         .anyRequest().authenticated() // everything else requires login
                 );
 
