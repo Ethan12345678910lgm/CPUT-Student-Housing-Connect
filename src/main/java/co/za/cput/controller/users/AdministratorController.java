@@ -120,6 +120,36 @@ public class AdministratorController {
         }
     }
 
+    @PostMapping("/{applicantId}/reject")
+    public ResponseEntity<?> reject(
+            @PathVariable Long applicantId,
+            @RequestBody AdminApprovalRequest request
+    ) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body("Approval request is required.");
+        }
+
+        if (request.getSuperAdminId() == null) {
+            return ResponseEntity.badRequest().body("Super administrator id is required.");
+        }
+
+        try {
+            Administrator rejected = administratorService.rejectAdministrator(
+                    applicantId,
+                    request.getSuperAdminId()
+            );
+            return ResponseEntity.ok(rejected);
+        } catch (IllegalArgumentException exception) {
+            HttpStatus status = "Invalid super administrator credentials.".equals(exception.getMessage())
+                    ? HttpStatus.FORBIDDEN
+                    : HttpStatus.BAD_REQUEST;
+            if ("Administrator not found.".equals(exception.getMessage())) {
+                status = HttpStatus.NOT_FOUND;
+            }
+            return ResponseEntity.status(status).body(exception.getMessage());
+        }
+    }
+
 
     @GetMapping("/read/{Id}")
     public ResponseEntity<Administrator> read(@PathVariable Long Id) {

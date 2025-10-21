@@ -69,7 +69,11 @@ public class AuthenticationService {
         Administrator administrator = administratorRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
         if (administrator != null && passwordMatches(password, administrator.getAdminPassword())) {
             if (administrator.getAdminRoleStatus() != Administrator.AdminRoleStatus.ACTIVE) {
-                return LoginResponse.failure("Your administrator account is awaiting approval.");
+                String message = "Your administrator account is awaiting approval.";
+                if (administrator.getAdminRoleStatus() == Administrator.AdminRoleStatus.SUSPENDED) {
+                    message = "Your administrator application has been declined.";
+                }
+                return LoginResponse.failure(message);
             }
             loginRateLimiter.resetAttempts(normalisedEmail);
             return LoginResponse.successForAdministrator(administrator);

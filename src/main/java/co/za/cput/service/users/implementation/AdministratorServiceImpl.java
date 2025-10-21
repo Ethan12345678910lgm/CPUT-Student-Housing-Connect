@@ -31,13 +31,13 @@ public class AdministratorServiceImpl implements IAdministratorService {
     private final VerificationRepository verificationRepository;
     private final PasswordEncoder passwordEncoder;
 
-
     @Autowired
     public AdministratorServiceImpl(AdministratorRepository administratorRepository,
                                     LandLordRepository landLordRepository,
                                     AccommodationRepository accommodationRepository,
                                     VerificationRepository verificationRepository,
-                                    PasswordEncoder passwordEncoder) {        this.administratorRepository = administratorRepository;
+                                    PasswordEncoder passwordEncoder) {
+        this.administratorRepository = administratorRepository;
         this.landLordRepository = landLordRepository;
         this.accommodationRepository = accommodationRepository;
         this.verificationRepository = verificationRepository;
@@ -89,7 +89,6 @@ public class AdministratorServiceImpl implements IAdministratorService {
 
         return administratorRepository.saveAndFlush(savedAdmin);
     }
-
 
     @Override
     public Administrator read(Long Id) {
@@ -160,6 +159,33 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
+    public Administrator rejectAdministrator(Long applicantId, Long superAdminId) {
+        requireSuperAdministrator(superAdminId);
+
+        if (applicantId == null) {
+            throw new IllegalArgumentException("Administrator not found.");
+        }
+
+        Administrator applicant = administratorRepository.findById(applicantId)
+                .orElseThrow(() -> new IllegalArgumentException("Administrator not found."));
+
+        if (applicant.isSuperAdmin()) {
+            return applicant;
+        }
+
+        if (applicant.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE) {
+            throw new IllegalArgumentException("Administrator is already active.");
+        }
+
+        Administrator rejected = new Administrator.Builder()
+                .copy(applicant)
+                .setAdminRoleStatus(Administrator.AdminRoleStatus.SUSPENDED)
+                .build();
+
+        return administratorRepository.saveAndFlush(rejected);
+    }
+
+    @Override
     public List<Administrator> getPendingAdministrators(Long superAdminId) {
         requireSuperAdministrator(superAdminId);
         return administratorRepository.findByAdminRoleStatus(Administrator.AdminRoleStatus.INACTIVE);
@@ -183,11 +209,9 @@ public class AdministratorServiceImpl implements IAdministratorService {
         }
 
         return administratorRepository.findById(superAdminId)
-
                 .filter(Administrator::isSuperAdmin)
                 .filter(admin -> admin.getAdminRoleStatus() == Administrator.AdminRoleStatus.ACTIVE)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid super administrator credentials."));
-
     }
 
     @Override
