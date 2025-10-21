@@ -47,6 +47,7 @@ public class Administrator {
         this.adminSurname = builder.adminSurname;
         this.adminPassword = builder.adminPassword;
         this.adminRoleStatus = builder.adminRoleStatus;
+        this.superAdmin = builder.superAdmin;
         this.contact = builder.contact;
         this.verifications = builder.verifications != null ? builder.verifications : new ArrayList<>();
     }
@@ -195,60 +196,3 @@ public class Administrator {
         }
     }
 }
-
-/*{
-        "adminName": "Simphiwwe",
-    "adminSurname": "Thwabuse",
-    "adminPassword": "secureAdminPass456",
-    "adminRoleStatus": "ACTIVE",
-    "contact": {
-        "email": "thabo.nkosi@adminportal.com",
-        "phoneNumber": "0740001122",
-        "alternatePhoneNumber": "0731112233",
-        "isEmailVerified": true,
-        "isPhoneVerified": true,
-        "preferredContactMethod": "EMAIL"
-        },
-    "verifications": [
-        {
-        "verificationDate": "2025-08-01",
-            "notes": "Verified based on submitted lease agreement and utility bill.",
-            "createAt": "2025-07-30T10:00:00",
-            "updateAt": "2025-08-01T14:30:00",
-            "verificationStatus": "APPROVED",
-            "accommodation": {
-                "rent": 2800.00,
-                "wifiAvailable": true,
-                "furnished": false,
-                "distanceFromCampus": 2.5,
-                "utilitiesIncluded": false,
-                "roomType": "DOUBLE",
-                "bathroomType": "SHARED",
-                "accommodationStatus": "AVAILABLE",
-                "address": {
-                    "streetNumber": "45B",
-                    "streetName": "Boundary Road",
-                    "suburb": "Observatory",
-                    "city": "Cape Town",
-                    "postalCode": 7925
-                },
-                "landlord": {
-                    "landlordFirstName": "Nomsa",
-                    "landlordLastName": "Zulu",
-                    "isVerified": true,
-                    "dateRegistered": "2024-12-10",
-                    "password": "nomsaLandlordPass2024",
-                    "contact": {
-                        "email": "nomsa.zulu@landlords.co.za",
-                        "phoneNumber": "0765432198",
-                        "alternatePhoneNumber": "0743219876",
-                        "isEmailVerified": true,
-                        "isPhoneVerified": false,
-                        "preferredContactMethod": "PHONE"
-                    }
-                }
-            }
-        }
-    ]
-}
-*/
