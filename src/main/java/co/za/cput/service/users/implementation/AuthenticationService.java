@@ -52,11 +52,21 @@ public class AuthenticationService {
     }
 
     public LoginResponse login(String email, String password) {
+        return login(email, password, null);
+    }
+
+    public LoginResponse login(String email, String password, String role) {
+
         if (Helper.isNullorEmpty(email) || Helper.isNullorEmpty(password)) {
             throw new IllegalArgumentException("Email and password are required");
         }
 
         String normalisedEmail = email.trim().toLowerCase(Locale.ROOT);
+        String normalisedRole = normaliseRole(role);
+
+        boolean checkStudent = normalisedRole == null || "STUDENT".equals(normalisedRole);
+        boolean checkLandlord = normalisedRole == null || "LANDLORD".equals(normalisedRole);
+        boolean checkAdmin = normalisedRole == null || "ADMIN".equals(normalisedRole);
 
         if (loginRateLimiter.isBlocked(normalisedEmail)) {
             Duration remaining = loginRateLimiter.timeUntilUnlock(normalisedEmail);
@@ -66,33 +76,49 @@ public class AuthenticationService {
             );
         }
 
-        Administrator administrator = administratorRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
         String pendingAdministratorMessage = null;
         boolean administratorCredentialsMatched = false;
-        if (administrator != null && passwordMatches(password, administrator.getAdminPassword())) {
-            administratorCredentialsMatched = true;
-            Administrator.AdminRoleStatus roleStatus = administrator.getAdminRoleStatus();
-            if (roleStatus == Administrator.AdminRoleStatus.ACTIVE) {
+
+
+        if (checkAdmin) {
+            Administrator administrator = administratorRepository
+                    .findFirstByContact_EmailIgnoreCase(normalisedEmail)
+                    .orElse(null);
+
+            if (administrator != null && passwordMatches(password, administrator.getAdminPassword())) {
+                administratorCredentialsMatched = true;
+                Administrator.AdminRoleStatus roleStatus = administrator.getAdminRoleStatus();
+                if (roleStatus == Administrator.AdminRoleStatus.ACTIVE) {
+                    loginRateLimiter.resetAttempts(normalisedEmail);
+                    return LoginResponse.successForAdministrator(administrator);
+                }
+
+                if (roleStatus == Administrator.AdminRoleStatus.SUSPENDED) {
+                    pendingAdministratorMessage = "Your administrator account has been suspended.";
+                } else {
+                    pendingAdministratorMessage = "Your administrator account is awaiting approval.";
+                }
+            }
+        }
+
+        if (checkLandlord) {
+            Landlord landlord = landLordRepository
+                    .findFirstByContact_EmailIgnoreCase(normalisedEmail)
+                    .orElse(null);
+            if (landlord != null && passwordMatches(password, landlord.getPassword())) {
                 loginRateLimiter.resetAttempts(normalisedEmail);
-                return LoginResponse.successForAdministrator(administrator);
-            }
-
-            if (roleStatus == Administrator.AdminRoleStatus.SUSPENDED) {
-                pendingAdministratorMessage = "Your administrator account has been suspended.";
-            } else {                pendingAdministratorMessage = "Your administrator account is awaiting approval.";
+                return LoginResponse.successForLandlord(landlord);
             }
         }
 
-        Landlord landlord = landLordRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
-        if (landlord != null && passwordMatches(password, landlord.getPassword())) {
-            loginRateLimiter.resetAttempts(normalisedEmail);
-            return LoginResponse.successForLandlord(landlord);
-        }
-
-        Student student = studentRepository.findFirstByContact_EmailIgnoreCase(normalisedEmail).orElse(null);
-        if (student != null && passwordMatches(password, student.getPassword())) {
-            loginRateLimiter.resetAttempts(normalisedEmail);
-            return LoginResponse.successForStudent(student);
+        if (checkStudent) {
+            Student student = studentRepository
+                    .findFirstByContact_EmailIgnoreCase(normalisedEmail)
+                    .orElse(null);
+            if (student != null && passwordMatches(password, student.getPassword())) {
+                loginRateLimiter.resetAttempts(normalisedEmail);
+                return LoginResponse.successForStudent(student);
+            }
         }
 
         if (pendingAdministratorMessage != null) {
@@ -106,7 +132,24 @@ public class AuthenticationService {
         }
 
         loginRateLimiter.recordFailedAttempt(normalisedEmail);
-        return LoginResponse.failure("Invalid email or password.");
+        String failureMessage = normalisedRole != null
+                ? "Invalid email or password for the selected account type."
+                : "Invalid email or password.";
+        return LoginResponse.failure(failureMessage);
+    }
+
+    private String normaliseRole(String role) {
+        if (Helper.isNullorEmpty(role)) {
+            return null;
+        }
+
+        String trimmedRole = role.trim().toUpperCase(Locale.ROOT);
+        return switch (trimmedRole) {
+            case "ADMIN", "ADMINISTRATOR" -> "ADMIN";
+            case "LANDLORD" -> "LANDLORD";
+            case "STUDENT" -> "STUDENT";
+            default -> null;
+        };
     }
 
     private boolean passwordMatches(String rawPassword, String encodedPassword) {

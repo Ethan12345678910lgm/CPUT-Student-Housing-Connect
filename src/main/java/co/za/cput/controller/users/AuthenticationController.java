@@ -41,7 +41,8 @@ public class AuthenticationController {
         try {
             LoginResponse loginResponse = authenticationService.login(
                     loginRequest.getEmail(),
-                    loginRequest.getPassword()
+                    loginRequest.getPassword(),
+                    loginRequest.getRole()
             );
 
             if (loginResponse.isAuthenticated()) {

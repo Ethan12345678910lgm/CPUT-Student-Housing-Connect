@@ -32,6 +32,11 @@ export const login = async (role, email, password) => {
     const payload = {
         email: email.trim().toLowerCase(),
         password,
+        ...(role
+            ? {
+                role: role.trim().toLowerCase(),
+            }
+            : {}),
     };
 
     const response = await apiClient.post("/auth/login", payload);
