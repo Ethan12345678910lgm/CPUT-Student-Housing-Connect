@@ -30,25 +30,45 @@ const normaliseBaseUrl = (url) => {
     return url.replace(/\/+$/, "");
 };
 
-const readEnvironmentBaseUrl = () => {
+const readEnvironmentValue = (...keys) => {
     try {
         const metaEnv = import.meta.env || {};
-        const viteBaseUrl = metaEnv.VITE_API_BASE_URL || metaEnv.REACT_APP_API_BASE_URL;
-        if (viteBaseUrl) {
-            return viteBaseUrl;
+        for (const key of keys) {
+            if (Object.prototype.hasOwnProperty.call(metaEnv, key) && metaEnv[key] !== undefined) {
+                return metaEnv[key];
+            }
         }
     } catch (error) {
         // `import.meta` is not available (for example when bundled by CRA).
     }
 
     if (typeof process !== "undefined" && process?.env) {
-        return process.env.VITE_API_BASE_URL || process.env.REACT_APP_API_BASE_URL;
-    }
+        for (const key of keys) {
+            if (process.env[key] !== undefined) {
+                return process.env[key];
+            }
+        }    }
 
     return undefined;
 };
 
-const API_BASE_URL = normaliseBaseUrl(readEnvironmentBaseUrl()) || normaliseBaseUrl(inferDefaultBaseUrl());
+    const readEnvironmentBaseUrl = () => readEnvironmentValue("VITE_API_BASE_URL", "REACT_APP_API_BASE_URL");
+
+    const parsePositiveInteger = (value, fallback) => {
+        if (value === undefined || value === null) {
+            return fallback;
+        }
+
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            return fallback;
+        }
+
+        return parsed;
+    };
+
+
+    const API_BASE_URL = normaliseBaseUrl(readEnvironmentBaseUrl()) || normaliseBaseUrl(inferDefaultBaseUrl());
 const buildUrl = (path) => {
     if (!path.startsWith("/")) {
         return `${API_BASE_URL}/${path}`;
@@ -60,7 +80,38 @@ const defaultHeaders = {
     "Content-Type": "application/json",
 };
 
-const REQUEST_TIMEOUT_MS = 15000;
+    const DEFAULT_TIMEOUT_MS = parsePositiveInteger(
+        readEnvironmentValue("VITE_API_TIMEOUT_MS", "REACT_APP_API_TIMEOUT_MS"),
+        15000,
+    );
+    const MAX_TIMEOUT_RETRIES = parsePositiveInteger(
+        readEnvironmentValue("VITE_API_TIMEOUT_RETRIES", "REACT_APP_API_TIMEOUT_RETRIES"),
+        1,
+    );
+    const MAX_TIMEOUT_LIMIT_MS = parsePositiveInteger(
+        readEnvironmentValue("VITE_API_MAX_TIMEOUT_MS", "REACT_APP_API_MAX_TIMEOUT_MS"),
+        45000,
+    );
+    const TIMEOUT_BACKOFF_MULTIPLIER = Math.max(
+        1,
+        parsePositiveInteger(
+            readEnvironmentValue("VITE_API_TIMEOUT_BACKOFF", "REACT_APP_API_TIMEOUT_BACKOFF"),
+            2,
+        ),
+    );
+    const TIMEOUT_RETRY_DELAY_MS = parsePositiveInteger(
+        readEnvironmentValue("VITE_API_TIMEOUT_RETRY_DELAY_MS", "REACT_APP_API_TIMEOUT_RETRY_DELAY_MS"),
+        750,
+    );
+
+    const wait = (durationMs) =>
+        new Promise((resolve) => {
+            if (!Number.isFinite(durationMs) || durationMs <= 0) {
+                resolve();
+                return;
+            }
+            setTimeout(resolve, durationMs);
+        });
 
 const parseResponse = async (response) => {
     if (response.status === 204) {
@@ -88,14 +139,18 @@ const parseResponse = async (response) => {
 const request = async (path, options = {}) => {
     const url = buildUrl(path);
     const {
-        timeout = REQUEST_TIMEOUT_MS,
+        timeout,
         headers,
         body,
+        retryOnTimeout = true,
+        signal: externalSignal,
         ...rest
     } = options;
 
-    const config = {
-        mode: "cors",
+    const resolvedTimeout = Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS;
+    const totalAttempts = retryOnTimeout ? Math.max(1, MAX_TIMEOUT_RETRIES + 1) : 1;
+
+    const baseConfig = {        mode: "cors",
         cache: "no-store",
         headers: {
             ...defaultHeaders,
@@ -105,45 +160,97 @@ const request = async (path, options = {}) => {
     };
 
     if (body !== undefined) {
-        config.body = typeof body === "string" ? body : JSON.stringify(body);
+        baseConfig.body = typeof body === "string" ? body : JSON.stringify(body);
     }
 
-    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    let timeoutId;
+    let currentTimeout = resolvedTimeout;
 
-    if (controller) {
-        config.signal = controller.signal;
-        if (Number.isFinite(timeout) && timeout > 0) {
-            timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    for (let attempt = 0; attempt < totalAttempts; attempt += 1) {
+        const isLastAttempt = attempt === totalAttempts - 1;
+        const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+        let timeoutId;
+        let didTimeout = false;
+        let externalAbortCleanup;
+
+        const config = { ...baseConfig };
+
+
+        if (controller) {
+            config.signal = controller.signal;
+
+            if (Number.isFinite(currentTimeout) && currentTimeout > 0) {
+                timeoutId = setTimeout(() => {
+                    didTimeout = true;
+                    controller.abort();
+                }, currentTimeout);
+            }
+
+            if (externalSignal) {
+                if (externalSignal.aborted) {
+                    controller.abort();
+                } else {
+                    const abortHandler = () => controller.abort();
+                    externalSignal.addEventListener("abort", abortHandler, { once: true });
+                    externalAbortCleanup = () => externalSignal.removeEventListener("abort", abortHandler);
+                }
+            }
+        } else if (externalSignal) {
+            config.signal = externalSignal;
+        }
+
+        try {
+            const response = await fetch(url, config);
+
+            if (!response.ok) {
+                const errorBody = await parseResponse(response);
+                const message =
+                    (typeof errorBody === "string" && errorBody.trim()) ||
+                    errorBody?.message ||
+                    `Request failed with status ${response.status}`;
+                throw new Error(message);
+            }
+
+            return parseResponse(response);
+        } catch (error) {
+            if (error?.name === "AbortError") {
+                if (didTimeout) {
+                    if (!isLastAttempt) {
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                            timeoutId = undefined;
+                        }
+                        if (externalAbortCleanup) {
+                            externalAbortCleanup();
+                            externalAbortCleanup = undefined;
+                        }
+                        const nextTimeout = Math.min(
+                            currentTimeout * TIMEOUT_BACKOFF_MULTIPLIER,
+                            MAX_TIMEOUT_LIMIT_MS,
+                        );
+                        currentTimeout = Math.max(nextTimeout, currentTimeout);
+                        await wait(TIMEOUT_RETRY_DELAY_MS);
+                        continue;
+                    }
+                    throw new Error("The request timed out. Please try again.");
+                }
+
+                throw new Error("The request was aborted.");
+            }
+            if (error instanceof TypeError) {
+                throw new Error("Unable to reach the server. Please check your connection and try again.");
+            }
+            throw error;
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            if (externalAbortCleanup) {
+                externalAbortCleanup();
+            }
         }
     }
-
-    try {
-        const response = await fetch(url, config);
-
-        if (!response.ok) {
-            const errorBody = await parseResponse(response);
-            const message =
-                (typeof errorBody === "string" && errorBody.trim()) ||
-                errorBody?.message ||
-                `Request failed with status ${response.status}`;
-            throw new Error(message);
-        }
-
-        return parseResponse(response);
-    } catch (error) {
-        if (error?.name === "AbortError") {
-            throw new Error("The request timed out. Please try again.");
-        }
-        if (error instanceof TypeError) {
-            throw new Error("Unable to reach the server. Please check your connection and try again.");
-        }
-        throw error;
-    } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-    }
+    throw new Error("Unable to complete the request. Please try again.");
 };
 
 const get = (path, options = {}) => request(path, { ...options, method: "GET" });
