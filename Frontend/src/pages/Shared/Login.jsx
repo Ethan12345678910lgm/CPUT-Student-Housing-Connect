@@ -12,7 +12,7 @@ const roles = [
 function Login({ defaultRole = "" }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [role, setRole] = useState(defaultRole);
+  const [role, setRole] = useState(defaultRole || "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(location.state?.message || "");
@@ -36,10 +36,10 @@ function Login({ defaultRole = "" }) {
   );
 
   useEffect(() => {
-    if (defaultRole && role !== defaultRole) {
-      setRole(defaultRole);
+    if (defaultRole !== undefined) {
+      setRole(defaultRole || "");
     }
-  }, [defaultRole, role]);
+  }, [defaultRole]);
 
   useEffect(() => {
     if (location.state?.message) {
