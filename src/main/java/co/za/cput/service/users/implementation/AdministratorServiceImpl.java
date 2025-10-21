@@ -137,7 +137,7 @@ public class AdministratorServiceImpl implements IAdministratorService {
     }
 
     @Override
-    ppublic Administrator approveAdministrator(Long applicantId, Long superAdminId) {
+    public Administrator approveAdministrator(Long applicantId, Long superAdminId) {
         requireSuperAdministrator(superAdminId);
 
         if (applicantId == null) {
