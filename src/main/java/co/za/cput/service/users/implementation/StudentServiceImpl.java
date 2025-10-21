@@ -48,10 +48,17 @@ public class StudentServiceImpl implements IStudentService {
 
         Student savedStudent = studentRepository.saveAndFlush(studentWithoutBookings); // Now has ID
 
-        // Step 2: Attach bookings with the now-persisted student
+        // No bookings to link – return the saved student as-is
+        if (securedStudent.getBookings() == null || securedStudent.getBookings().isEmpty()) {
+            return savedStudent;
+        }
+
+        // Step 2: Attach bookings with the now-persisted student while keeping the persisted contact
         Student studentWithLinkedBookings = LinkingEntitiesHelper.setStudentInBookings(
-                new Student.Builder().copy(securedStudent).setStudentID(savedStudent.getStudentID()).build()
-        );
+                new Student.Builder()
+                        .copy(savedStudent)
+                        .setBookings(securedStudent.getBookings())
+                        .build()        );
 
         // Step 3: Save again with linked bookings
         return studentRepository.saveAndFlush(studentWithLinkedBookings);
