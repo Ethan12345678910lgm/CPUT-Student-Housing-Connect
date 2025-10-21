@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
     FaBell,
     FaClipboardCheck,
+    FaClipboardList,
     FaClock,
     FaDatabase,
     FaHome,
@@ -12,8 +14,9 @@ import {
     FaUserShield,
     FaUsers,
 } from "react-icons/fa";
-import { fetchDashboardOverview } from "../../../services/adminService";
+import { fetchDashboardOverview, fetchPendingAdminApplications } from "../../../services/adminService";
 import AdminNavigation from "../../../components/admin/AdminNavigation";
+import { getCurrentUser } from "../../../services/authService";
 
 const pageStyles = {
     minHeight: "100vh",
@@ -44,10 +47,17 @@ const badgeStyles = {
 };
 
 function Dashboard() {
+    const currentUser = useMemo(() => getCurrentUser(), []);
+    const isSuperAdmin = Boolean(currentUser?.superAdmin);
+    const superAdminId = currentUser?.userId;
+
     const [timeframe, setTimeframe] = useState("monthly");
     const [overview, setOverview] = useState(null);
     const [isOverviewLoading, setIsOverviewLoading] = useState(true);
     const [overviewError, setOverviewError] = useState("");
+    const [pendingAdmins, setPendingAdmins] = useState([]);
+    const [isPendingAdminsLoading, setIsPendingAdminsLoading] = useState(false);
+    const [pendingAdminsError, setPendingAdminsError] = useState("");
 
     useEffect(() => {
         const resolveOverview = async () => {
@@ -64,14 +74,60 @@ function Dashboard() {
         resolveOverview();
     }, []);
 
+    useEffect(() => {
+        if (!isSuperAdmin || !superAdminId) {
+            setPendingAdmins([]);
+            setPendingAdminsError("");
+            return;
+        }
+
+        let isMounted = true;
+
+        const loadPendingAdmins = async () => {
+            setIsPendingAdminsLoading(true);
+            setPendingAdminsError("");
+
+            try {
+                const pending = await fetchPendingAdminApplications(superAdminId);
+                if (isMounted) {
+                    setPendingAdmins(Array.isArray(pending) ? pending : []);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setPendingAdminsError(
+                        error.message || "Unable to load pending administrator applications.",
+                    );
+                }
+            } finally {
+                if (isMounted) {
+                    setIsPendingAdminsLoading(false);
+                }
+            }
+        };
+
+        loadPendingAdmins();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isSuperAdmin, superAdminId]);
+
     const overviewMetrics = useMemo(() => {
         if (!overview) return [];
         return [
             { label: "Students", value: overview.totalStudents, icon: <FaUsers size={20} color="#2563eb" /> },
             { label: "Landlords", value: overview.totalLandlords, icon: <FaUserCheck size={20} color="#16a34a" /> },
-            { label: "Verified landlords", value: overview.verifiedLandlords, icon: <FaShieldAlt size={20} color="#0f766e" /> },
+            {
+                label: "Verified landlords",
+                value: overview.verifiedLandlords,
+                icon: <FaShieldAlt size={20} color="#0f766e" />,
+            },
             { label: "Listings", value: overview.totalAccommodations, icon: <FaHome size={20} color="#f97316" /> },
-            { label: "Pending checks", value: overview.pendingVerifications, icon: <FaClipboardCheck size={20} color="#d97706" /> },
+            {
+                label: "Pending checks",
+                value: overview.pendingVerifications,
+                icon: <FaClipboardCheck size={20} color="#d97706" />,
+            },
             { label: "Active bookings", value: overview.activeBookings, icon: <FaClock size={20} color="#7c3aed" /> },
         ];
     }, [overview]);
@@ -81,6 +137,13 @@ function Dashboard() {
         const value = typeof overview.occupancyRate === "number" ? overview.occupancyRate : Number(overview.occupancyRate || 0);
         return `${value.toFixed(2)}% occupancy`;
     }, [overview]);
+
+    const pendingAdminsPreview = useMemo(() => {
+        if (!Array.isArray(pendingAdmins)) {
+            return [];
+        }
+        return pendingAdmins.slice(0, 4);
+    }, [pendingAdmins]);
 
     const metricSets = useMemo(
         () => ({
@@ -117,22 +180,22 @@ function Dashboard() {
                 ],
             },
             monthly: {
-                headline: "April 2024",
+                headline: "This month",
                 summary: [
-                    { title: "New student sign-ups", value: 868, change: "+34", icon: <FaUsers size={22} color="#2563eb" /> },
-                    { title: "Landlord verifications", value: 219, change: "+14", icon: <FaUserCheck size={22} color="#16a34a" /> },
-                    { title: "Listings approved", value: 247, change: "+18", icon: <FaHome size={22} color="#f97316" /> },
-                    { title: "Incidents escalated", value: 39, change: "-8", icon: <FaBell size={22} color="#ef4444" /> },
+                    { title: "New student sign-ups", value: 890, change: "+38", icon: <FaUsers size={22} color="#2563eb" /> },
+                    { title: "Landlord verifications", value: 226, change: "+17", icon: <FaUserCheck size={22} color="#16a34a" /> },
+                    { title: "Listings approved", value: 238, change: "+9", icon: <FaHome size={22} color="#f97316" /> },
+                    { title: "Incidents escalated", value: 58, change: "-12", icon: <FaBell size={22} color="#ef4444" /> },
                 ],
                 trend: [
-                    { label: "Week 1", total: 180 },
-                    { label: "Week 2", total: 382 },
-                    { label: "Week 3", total: 624 },
-                    { label: "Week 4", total: 868 },
+                    { label: "Week 1", total: 182 },
+                    { label: "Week 2", total: 387 },
+                    { label: "Week 3", total: 652 },
+                    { label: "Week 4", total: 890 },
                 ],
             },
         }),
-        []
+        [],
     );
 
     const { headline, summary, trend } = metricSets[timeframe];
@@ -172,7 +235,7 @@ function Dashboard() {
                 status: "Awaiting documents",
             },
         ],
-        []
+        [],
     );
 
     const activityFeed = useMemo(
@@ -202,7 +265,7 @@ function Dashboard() {
                 context: "lerato.maseko@cput.ac.za",
             },
         ],
-        []
+        [],
     );
 
     const statusColors = {
@@ -219,7 +282,7 @@ function Dashboard() {
             { name: "Compliance", completion: 92 },
             { name: "Health & Safety", completion: 84 },
         ],
-        []
+        [],
     );
 
     const renderProgressBar = (value, color) => (
@@ -299,6 +362,99 @@ function Dashboard() {
                             </button>
                         </div>
                     </header>
+
+                    {isSuperAdmin && (
+                        <section style={{ ...cardStyles, padding: "24px 28px", display: "grid", gap: "18px" }}>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: "16px",
+                                }}
+                            >
+                                <div style={{ display: "grid", gap: "8px" }}>
+                                    <span
+                                        style={{
+                                            ...badgeStyles,
+                                            backgroundColor: "rgba(16, 185, 129, 0.12)",
+                                            color: "#0f766e",
+                                        }}
+                                    >
+                                        <FaUserShield size={14} /> Super administrator queue
+                                    </span>
+                                    <h2 style={{ margin: 0, fontSize: "24px" }}>Pending administrator applications</h2>
+                                    <p style={{ margin: 0, color: "#475569" }}>
+                                        Review administrator requests awaiting approval before granting console access.
+                                    </p>
+                                </div>
+                                <Link to="/admin/signup" style={manageApplicationsLinkStyles}>
+                                    <FaClipboardList size={14} /> Manage applications
+                                </Link>
+                            </div>
+
+                            {pendingAdminsError && <div style={overviewErrorStyles}>{pendingAdminsError}</div>}
+
+                            {isPendingAdminsLoading ? (
+                                <div style={loadingPillStyles}>Loading administrator applications...</div>
+                            ) : pendingAdminsPreview.length === 0 ? (
+                                <div style={successPillStyles}>
+                                    All administrator applications are up to date.
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gap: "12px" }}>
+                                    {pendingAdminsPreview.map((admin) => {
+                                        const fullName = [admin.adminName, admin.adminSurname]
+                                            .filter(Boolean)
+                                            .join(" ");
+                                        const contactDetails = [
+                                            admin?.contact?.email ? `Email: ${admin.contact.email}` : null,
+                                            admin?.contact?.phoneNumber ? `Phone: ${admin.contact.phoneNumber}` : null,
+                                        ].filter(Boolean);
+
+                                        return (
+                                            <div key={admin.adminID} style={pendingAdminItemStyles}>
+                                                <div style={{ display: "grid", gap: "8px" }}>
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            gap: "12px",
+                                                            flexWrap: "wrap",
+                                                        }}
+                                                    >
+                                                        <strong style={{ fontSize: "16px" }}>
+                                                            {fullName || "Pending administrator"}
+                                                        </strong>
+                                                        <span style={pendingAdminBadgeStyles}>
+                                                            <FaClock size={12} /> Awaiting approval
+                                                        </span>
+                                                    </div>
+                                                    <div style={pendingAdminMetaStyles}>
+                                                        {contactDetails.length > 0 ? (
+                                                            contactDetails.map((detail) => (
+                                                                <span key={detail}>{detail}</span>
+                                                            ))
+                                                        ) : (
+                                                            <span>No contact details submitted</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {pendingAdmins.length > pendingAdminsPreview.length && (
+                                <div style={{ fontSize: "13px", color: "#475569" }}>
+                                    Showing {pendingAdminsPreview.length} of {pendingAdmins.length} pending applications. Visit
+                                    Manage applications to review all requests.
+                                </div>
+                            )}
+                        </section>
+                    )}
 
                     <section style={{ ...cardStyles, padding: "24px 28px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
@@ -388,19 +544,20 @@ function Dashboard() {
                                 marginTop: "24px",
                                 display: "grid",
                                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                                gap: "18px",
+                                gap: "16px",
                             }}
                         >
                             {summary.map((item) => (
                                 <div
                                     key={item.title}
                                     style={{
-                                        border: "1px solid rgba(226, 232, 240, 0.8)",
-                                        borderRadius: "18px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
                                         padding: "18px",
-                                        background: "linear-gradient(135deg, rgba(248, 250, 255, 0.85), rgba(229, 236, 255, 0.65))",
-                                        display: "grid",
-                                        gap: "12px",
+                                        borderRadius: "16px",
+                                        border: "1px solid rgba(226, 232, 240, 0.7)",
+                                        background: "linear-gradient(180deg, rgba(248, 250, 255, 0.85), rgba(229, 236, 255, 0.6))",
                                     }}
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -618,6 +775,54 @@ const overviewErrorStyles = {
     borderRadius: "14px",
     backgroundColor: "rgba(239, 68, 68, 0.12)",
     color: "#b91c1c",
+};
+
+const successPillStyles = {
+    padding: "16px",
+    borderRadius: "14px",
+    backgroundColor: "rgba(16, 185, 129, 0.16)",
+    color: "#0f766e",
+    fontWeight: 600,
+};
+
+const manageApplicationsLinkStyles = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #3056d3, #5b8dff)",
+    color: "#ffffff",
+    fontWeight: 600,
+    textDecoration: "none",
+    boxShadow: "0 12px 24px rgba(37, 99, 235, 0.25)",
+};
+
+const pendingAdminItemStyles = {
+    border: "1px solid rgba(226, 232, 240, 0.8)",
+    borderRadius: "16px",
+    padding: "16px",
+    background: "linear-gradient(135deg, rgba(248, 250, 255, 0.85), rgba(229, 236, 255, 0.65))",
+};
+
+const pendingAdminBadgeStyles = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
+    color: "#1d4ed8",
+    fontSize: "12px",
+    fontWeight: 600,
+};
+
+const pendingAdminMetaStyles = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "12px",
+    color: "#64748b",
+    fontSize: "13px",
 };
 
 export default Dashboard;
