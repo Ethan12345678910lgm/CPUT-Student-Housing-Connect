@@ -4,6 +4,7 @@ import co.za.cput.domain.business.Verification;
 import co.za.cput.domain.users.Administrator;
 import co.za.cput.domain.users.Landlord;
 import co.za.cput.dto.AdminApprovalRequest;
+import co.za.cput.dto.AdminRejectionRequest;
 import co.za.cput.dto.LandlordVerificationRequest;
 import co.za.cput.dto.ListingVerificationRequest;
 import co.za.cput.service.users.implementation.AdministratorServiceImpl;
@@ -12,7 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/admins", "/HouseConnect/Administrator"})
@@ -120,6 +123,45 @@ public class AdministratorController {
         }
     }
 
+    @PostMapping("/{applicantId}/decline")
+    public ResponseEntity<?> decline(
+            @PathVariable Long applicantId,
+            @RequestBody AdminRejectionRequest request
+    ) {
+        if (request == null) {
+            return ResponseEntity.badRequest().body("Decline request is required.");
+        }
+
+        if (request.getSuperAdminId() == null) {
+            return ResponseEntity.badRequest().body("Super administrator id is required.");
+        }
+
+        try {
+            Administrator declined = administratorService.declineAdministrator(
+                    applicantId,
+                    request.getSuperAdminId(),
+                    request.getReason()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Administrator application declined.");
+            response.put("applicantId", applicantId);
+            if (declined != null) {
+                response.put("applicantName", declined.getAdminName());
+                response.put("applicantSurname", declined.getAdminSurname());
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException exception) {
+            HttpStatus status = "Invalid super administrator credentials.".equals(exception.getMessage())
+                    ? HttpStatus.FORBIDDEN
+                    : HttpStatus.BAD_REQUEST;
+            if ("Administrator not found.".equals(exception.getMessage())) {
+                status = HttpStatus.NOT_FOUND;
+            }
+            return ResponseEntity.status(status).body(exception.getMessage());
+        }
+    }
 
     @GetMapping("/read/{Id}")
     public ResponseEntity<Administrator> read(@PathVariable Long Id) {

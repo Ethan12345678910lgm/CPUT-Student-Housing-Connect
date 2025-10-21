@@ -15,6 +15,7 @@ import {
     applyForAdministrator,
     approveAdminApplication,
     fetchPendingAdminApplications,
+    declineAdminApplication,
 } from "../../../services/adminService";
 import { getCurrentUser } from "../../../services/authService";
 
@@ -162,8 +163,9 @@ function AdminSignUp() {
 
     const [pendingRequests, setPendingRequests] = useState([]);
     const [pendingError, setPendingError] = useState("");
+    const [pendingFeedback, setPendingFeedback] = useState("");
     const [isLoadingPending, setIsLoadingPending] = useState(false);
-    const [processingId, setProcessingId] = useState(null);
+    const [processingState, setProcessingState] = useState({ id: null, action: null });
     const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
@@ -270,16 +272,93 @@ function AdminSignUp() {
         }
     };
 
-    const handleApprove = async (applicantId) => {
+    const handleApprove = async (applicant) => {
+        const applicantId = applicant?.adminID;
+        if (!applicantId) {
+            return;
+        }
+
+        if (!currentUser?.userId) {
+            setPendingError("Super administrator credentials are required to approve applications.");
+            return;
+        }
+
         setPendingError("");
-        setProcessingId(applicantId);
+        setPendingFeedback("");
+        setProcessingState({ id: applicantId, action: "approve" });
+
         try {
-            await approveAdminApplication(applicantId, currentUser.userId);
+            await approveAdminApplication(applicantId, currentUser?.userId);
             setPendingRequests((previous) => previous.filter((request) => request.adminID !== applicantId));
+            const fullName = [applicant?.adminName, applicant?.adminSurname]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+
+            setPendingFeedback(
+                fullName
+                    ? `${fullName} has been approved and can now sign in as an administrator.`
+                    : "Administrator application approved."
+            );
         } catch (error) {
             setPendingError(error.message || "Unable to approve the selected administrator.");
         } finally {
-            setProcessingId(null);
+            setProcessingState({ id: null, action: null });
+        }
+    };
+
+    const handleDecline = async (applicant) => {
+        const applicantId = applicant?.adminID;
+        if (!applicantId) {
+            return;
+        }
+
+        if (typeof window !== "undefined") {
+            const confirmDecline = window.confirm(
+                "Are you sure you want to decline this administrator application?"
+            );
+
+            if (!confirmDecline) {
+                return;
+            }
+        }
+
+        if (!currentUser?.userId) {
+            setPendingError("Super administrator credentials are required to decline applications.");
+            return;
+        }
+
+        let reason = "";
+        if (typeof window !== "undefined") {
+            const providedReason = window.prompt(
+                "Optional: share a note about why the application was declined.",
+                ""
+            );
+            reason = providedReason ?? "";
+        }
+
+        setPendingError("");
+        setPendingFeedback("");
+        setProcessingState({ id: applicantId, action: "decline" });
+
+        try {
+            await declineAdminApplication(applicantId, currentUser?.userId, reason);
+            setPendingRequests((previous) => previous.filter((request) => request.adminID !== applicantId));
+
+            const fullName = [applicant?.adminName, applicant?.adminSurname]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+
+            setPendingFeedback(
+                fullName
+                    ? `${fullName}'s application has been declined and their details removed.`
+                    : "Administrator application declined."
+            );
+        } catch (error) {
+            setPendingError(error.message || "Unable to decline the selected administrator.");
+        } finally {
+            setProcessingState({ id: null, action: null });
         }
     };
 
@@ -444,6 +523,7 @@ function AdminSignUp() {
             </div>
 
             {pendingError && <div style={errorStyles}>{pendingError}</div>}
+            {pendingFeedback && <div style={successStyles}>{pendingFeedback}</div>}
 
             {isLoadingPending ? (
                 <p style={{ color: "#475569" }}>Loading pending administrator applications...</p>
@@ -487,19 +567,26 @@ function AdminSignUp() {
                                         <button
                                             type="button"
                                             style={buttonStyles}
-                                            onClick={() => handleApprove(request.adminID)}
-                                            disabled={processingId === request.adminID}
+                                            onClick={() => handleApprove(request)}
+                                            disabled={processingState.id === request.adminID}
                                         >
                                             <FaCheckCircle aria-hidden="true" />
-                                            {processingId === request.adminID ? "Approving..." : "Approve"}
+                                            {processingState.id === request.adminID &&
+                                            processingState.action === "approve"
+                                                ? "Approving..."
+                                                : "Approve"}
                                         </button>
                                         <button
                                             type="button"
                                             style={secondaryButtonStyles}
-                                            disabled
-                                            title="Rejections will be supported in a future update"
+                                            onClick={() => handleDecline(request)}
+                                            disabled={processingState.id === request.adminID}
                                         >
-                                            <FaUserLock aria-hidden="true" /> Reject
+                                            <FaUserLock aria-hidden="true" />
+                                            {processingState.id === request.adminID &&
+                                            processingState.action === "decline"
+                                                ? "Declining..."
+                                                : "Decline"}
                                         </button>
                                     </div>
                                 </td>

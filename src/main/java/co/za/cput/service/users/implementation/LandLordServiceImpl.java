@@ -9,6 +9,7 @@ import co.za.cput.domain.users.Landlord;
 import co.za.cput.repository.business.AccommodationRepository;
 import co.za.cput.repository.users.LandLordRepository;
 import co.za.cput.service.users.ILandLordService;
+import co.za.cput.util.Helper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,16 @@ public class LandLordServiceImpl implements ILandLordService {
     @Transactional
     public Landlord create(Landlord landlord) {
         Landlord securedLandlord = secureLandlord(landlord);
+        if (securedLandlord == null) {
+            throw new IllegalArgumentException("Landlord details are required.");
+        }
+
+        Contact contact = securedLandlord.getContact();
+        if (contact != null && !Helper.isNullorEmpty(contact.getEmail())
+                && landLordRepository.existsByContact_EmailIgnoreCase(contact.getEmail())) {
+            throw new IllegalArgumentException("A landlord with this email already exists.");
+        }
+
         // Step 1: Save landlord without accommodations
         Landlord savedLandlord = new Landlord.Builder()
                 .copy(securedLandlord)
@@ -81,6 +92,16 @@ public class LandLordServiceImpl implements ILandLordService {
         }
 
         Landlord securedLandlord = secureLandlord(landlord);
+
+
+        Contact contact = securedLandlord.getContact();
+        if (contact != null && !Helper.isNullorEmpty(contact.getEmail())) {
+            landLordRepository.findFirstByContact_EmailIgnoreCase(contact.getEmail())
+                    .filter(existing -> !existing.getLandlordID().equals(securedLandlord.getLandlordID()))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("A landlord with this email already exists.");
+                    });
+        }
         // Step 1: Fetch existing landlord (managed instance)
         Landlord existing = landLordRepository.findById(securedLandlord.getLandlordID())
                 .orElseThrow(() -> new IllegalArgumentException("Landlord not found"));

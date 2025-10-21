@@ -44,11 +44,29 @@ export const approveAdminApplication = async (applicantId, superAdminId) => {
     return response;
 };
 
+export const declineAdminApplication = async (applicantId, superAdminId, reason) => {
+    if (!applicantId) {
+        throw new Error("Applicant id is required.");
+    }
+    if (!superAdminId) {
+        throw new Error("Super administrator id is required.");
+    }
+
+    const payload = { superAdminId };
+    if (reason && reason.trim()) {
+        payload.reason = reason.trim();
+    }
+
+    const response = await apiClient.post(`/admins/${applicantId}/decline`, payload);
+    return response;
+};
+
 const adminService = {
     fetchDashboardOverview,
     applyForAdministrator,
     fetchPendingAdminApplications,
     approveAdminApplication,
+    declineAdminApplication,
 };
 
 export default adminService;

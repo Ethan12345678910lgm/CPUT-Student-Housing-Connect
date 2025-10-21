@@ -6,10 +6,12 @@ package co.za.cput.controller.users;
 import co.za.cput.domain.users.Landlord;
 import co.za.cput.service.users.implementation.LandLordServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(originPatterns = "${app.security.cors.allowed-origin-patterns}")
@@ -24,9 +26,20 @@ public class LandLordController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<Landlord> create(@RequestBody Landlord landlord) {
-        Landlord created = landLordService.create(landlord);
-        return ResponseEntity.ok(created);
+    public ResponseEntity<?> create(@RequestBody Landlord landlord) {
+        if (landlord == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Landlord details are required."));
+        }
+
+        try {
+            Landlord created = landLordService.create(landlord);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException exception) {
+            HttpStatus status = "A landlord with this email already exists.".equals(exception.getMessage())
+                    ? HttpStatus.CONFLICT
+                    : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(Map.of("message", exception.getMessage()));
+        }
     }
 
     @GetMapping("/read/{Id}")

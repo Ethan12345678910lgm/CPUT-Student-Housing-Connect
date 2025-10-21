@@ -12,6 +12,8 @@ import co.za.cput.service.users.IAdministratorService;
 import co.za.cput.util.Helper;
 import co.za.cput.util.LinkingEntitiesHelper;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class AdministratorServiceImpl implements IAdministratorService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AdministratorServiceImpl.class);
 
     private final AdministratorRepository administratorRepository;
     private final LandLordRepository landLordRepository;
@@ -157,6 +161,41 @@ public class AdministratorServiceImpl implements IAdministratorService {
                 .build();
 
         return administratorRepository.saveAndFlush(approved);
+    }
+
+    @Override
+    public Administrator declineAdministrator(Long applicantId, Long superAdminId, String reason) {
+        Administrator superAdministrator = requireSuperAdministrator(superAdminId);
+
+        if (applicantId == null) {
+            throw new IllegalArgumentException("Administrator not found.");
+        }
+
+        if (superAdministrator.getAdminID().equals(applicantId)) {
+            throw new IllegalArgumentException("Super administrators cannot decline themselves.");
+        }
+
+        Administrator applicant = administratorRepository.findById(applicantId)
+                .orElseThrow(() -> new IllegalArgumentException("Administrator not found."));
+
+        if (applicant.isSuperAdmin()) {
+            throw new IllegalArgumentException("Cannot decline a super administrator.");
+        }
+
+        administratorRepository.delete(applicant);
+        administratorRepository.flush();
+
+        if (LOGGER.isInfoEnabled()) {
+            String trimmedReason = reason != null ? reason.trim() : "";
+            LOGGER.info(
+                    "Super administrator {} declined administrator application {}. Reason: {}",
+                    superAdminId,
+                    applicantId,
+                    trimmedReason.isEmpty() ? "No reason supplied" : trimmedReason
+            );
+        }
+
+        return applicant;
     }
 
     @Override
