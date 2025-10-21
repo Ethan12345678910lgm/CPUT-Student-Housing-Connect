@@ -6,8 +6,8 @@ package co.za.cput.domain.users;
 
 import co.za.cput.domain.business.Accommodation;
 import co.za.cput.domain.generic.Contact;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -24,7 +24,7 @@ public class Landlord {
     private String landlordLastName;
     private boolean isVerified; //To indicate if the landlord's identity or business has been verified by admin.
     private LocalDate dateRegistered; //Date the LandLord registered to the system.
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
 
