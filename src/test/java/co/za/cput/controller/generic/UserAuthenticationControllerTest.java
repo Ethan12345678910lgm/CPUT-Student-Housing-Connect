@@ -4,7 +4,6 @@ import co.za.cput.domain.generic.Contact;
 import co.za.cput.domain.generic.UserAuthentication;
 import co.za.cput.factory.generic.ContactFactory;
 import co.za.cput.factory.generic.UserAuthenticationFactory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -13,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -103,15 +103,15 @@ class UserAuthenticationControllerTest {
     }
 
     @Test
-    @Disabled
     void e_delete() {
         assertNotNull(userAuthentication_withId);
         String url = BASE_URL + "/delete/" + userAuthentication_withId.getAuthenticationId();
         this.restTemplate.delete(url);
 
-        ResponseEntity<UserAuthentication> readResponse =
-                this.restTemplate.getForEntity(BASE_URL + "/read/" + userAuthentication_withId.getAuthenticationId(), UserAuthentication.class);
-        assertEquals(HttpStatus.NOT_FOUND, readResponse.getStatusCode());
-        System.out.println("UserAuthentication successfully deleted. Status code: " + readResponse.getStatusCode());
+        String readUrl = BASE_URL + "/read/" + userAuthentication_withId.getAuthenticationId();
+        HttpClientErrorException.NotFound exception = assertThrows(HttpClientErrorException.NotFound.class,
+                () -> this.restTemplate.getForEntity(readUrl, UserAuthentication.class));
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+        System.out.println("UserAuthentication successfully deleted. Status code: " + exception.getStatusCode());
     }
 }
