@@ -80,6 +80,21 @@ const defaultHeaders = {
     "Content-Type": "application/json",
 };
 
+const createError = (message, code, details) => {
+    const error = new Error(message);
+    if (code) {
+        error.code = code;
+    }
+    if (details && typeof details === "object") {
+        Object.entries(details).forEach(([key, value]) => {
+            if (value !== undefined) {
+                error[key] = value;
+            }
+        });
+    }
+    return error;
+};
+
     const DEFAULT_TIMEOUT_MS = parsePositiveInteger(
         readEnvironmentValue("VITE_API_TIMEOUT_MS", "REACT_APP_API_TIMEOUT_MS"),
         15000,
@@ -208,8 +223,10 @@ const request = async (path, options = {}) => {
                     (typeof errorBody === "string" && errorBody.trim()) ||
                     errorBody?.message ||
                     `Request failed with status ${response.status}`;
-                throw new Error(message);
-            }
+                throw createError(message, "HTTP_ERROR", {
+                    status: response.status,
+                    responseBody: errorBody,
+                });            }
 
             return parseResponse(response);
         } catch (error) {
@@ -232,13 +249,19 @@ const request = async (path, options = {}) => {
                         await wait(TIMEOUT_RETRY_DELAY_MS);
                         continue;
                     }
-                    throw new Error("The request timed out. Please try again.");
+                    throw createError("The request timed out. Please try again.", "TIMEOUT", {
+                        timeout: currentTimeout,
+                        attempts: attempt + 1,
+                    });
                 }
 
-                throw new Error("The request was aborted.");
+                throw createError("The request was aborted.", "ABORTED");
             }
             if (error instanceof TypeError) {
-                throw new Error("Unable to reach the server. Please check your connection and try again.");
+                throw createError(
+                    "Unable to reach the server. Please check your connection and try again.",
+                    "NETWORK",
+                );
             }
             throw error;
         } finally {
@@ -250,7 +273,7 @@ const request = async (path, options = {}) => {
             }
         }
     }
-    throw new Error("Unable to complete the request. Please try again.");
+    throw createError("Unable to complete the request. Please try again.", "UNKNOWN");
 };
 
 const get = (path, options = {}) => request(path, { ...options, method: "GET" });

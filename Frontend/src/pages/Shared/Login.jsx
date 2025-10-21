@@ -51,6 +51,11 @@ function Login({ defaultRole = "" }) {
     event.preventDefault();
 
     setError("");
+    if (!role) {
+      setError("Select the type of account you're signing in with to continue.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const authenticatedUser = await authenticate(role, email, password);
@@ -61,7 +66,14 @@ function Login({ defaultRole = "" }) {
       const destination = resolveRedirect(authenticatedUser.role || role);
       navigate(destination, { replace: true });
     } catch (authError) {
-      setError(authError.message || "Unable to authenticate with the supplied credentials.");
+      let message = authError?.message || "Unable to authenticate with the supplied credentials.";
+      if (authError?.code === "TIMEOUT" || authError?.code === "NETWORK") {
+        message =
+            "We could not reach the authentication service. Ensure the Spring Boot API is running. " +
+            "If it fell back to a different port, update REACT_APP_API_BASE_URL (or VITE_API_BASE_URL) " +
+            "to point to that port, or restart the server with an available port.";
+      }
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
