@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(originPatterns = {"http://localhost:*", "http://127.0.0.1:*"})
+@CrossOrigin(originPatterns = "${app.security.cors.allowed-origin-patterns}")
 @RequestMapping({"/api/landlords", "/HouseConnect/Landlord"})
 public class LandLordController {
 

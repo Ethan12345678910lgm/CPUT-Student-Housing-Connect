@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(originPatterns = {"http://localhost:*", "http://127.0.0.1:*"})
+@CrossOrigin(originPatterns = "${app.security.cors.allowed-origin-patterns}")
 @RequestMapping({"/api/students", "/HouseConnect/Student"})
 public class StudentController {
 
