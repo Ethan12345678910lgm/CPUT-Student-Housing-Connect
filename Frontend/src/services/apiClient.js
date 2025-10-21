@@ -30,8 +30,25 @@ const normaliseBaseUrl = (url) => {
     return url.replace(/\/+$/, "");
 };
 
-const API_BASE_URL = normaliseBaseUrl(process.env.REACT_APP_API_BASE_URL) || normaliseBaseUrl(inferDefaultBaseUrl());
+const readEnvironmentBaseUrl = () => {
+    try {
+        const metaEnv = import.meta.env || {};
+        const viteBaseUrl = metaEnv.VITE_API_BASE_URL || metaEnv.REACT_APP_API_BASE_URL;
+        if (viteBaseUrl) {
+            return viteBaseUrl;
+        }
+    } catch (error) {
+        // `import.meta` is not available (for example when bundled by CRA).
+    }
 
+    if (typeof process !== "undefined" && process?.env) {
+        return process.env.VITE_API_BASE_URL || process.env.REACT_APP_API_BASE_URL;
+    }
+
+    return undefined;
+};
+
+const API_BASE_URL = normaliseBaseUrl(readEnvironmentBaseUrl()) || normaliseBaseUrl(inferDefaultBaseUrl());
 const buildUrl = (path) => {
     if (!path.startsWith("/")) {
         return `${API_BASE_URL}/${path}`;
@@ -42,6 +59,8 @@ const buildUrl = (path) => {
 const defaultHeaders = {
     "Content-Type": "application/json",
 };
+
+const REQUEST_TIMEOUT_MS = 15000;
 
 const parseResponse = async (response) => {
     if (response.status === 204) {
@@ -68,15 +87,35 @@ const parseResponse = async (response) => {
 
 const request = async (path, options = {}) => {
     const url = buildUrl(path);
+    const {
+        timeout = REQUEST_TIMEOUT_MS,
+        headers,
+        body,
+        ...rest
+    } = options;
+
     const config = {
-        headers: defaultHeaders,
         mode: "cors",
         cache: "no-store",
-        ...options,
+        headers: {
+            ...defaultHeaders,
+            ...(headers || {}),
+        },
+        ...rest,
     };
 
-    if (options.body && typeof options.body !== "string") {
-        config.body = JSON.stringify(options.body);
+    if (body !== undefined) {
+        config.body = typeof body === "string" ? body : JSON.stringify(body);
+    }
+
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    let timeoutId;
+
+    if (controller) {
+        config.signal = controller.signal;
+        if (Number.isFinite(timeout) && timeout > 0) {
+            timeoutId = setTimeout(() => controller.abort(), timeout);
+        }
     }
 
     try {
@@ -93,10 +132,17 @@ const request = async (path, options = {}) => {
 
         return parseResponse(response);
     } catch (error) {
+        if (error?.name === "AbortError") {
+            throw new Error("The request timed out. Please try again.");
+        }
         if (error instanceof TypeError) {
             throw new Error("Unable to reach the server. Please check your connection and try again.");
         }
         throw error;
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
     }
 };
 
