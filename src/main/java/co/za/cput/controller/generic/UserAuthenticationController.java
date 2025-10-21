@@ -22,7 +22,6 @@ import java.util.Locale;
 
 @RestController
 @RequestMapping({"/UserAuthentication", "/HouseConnect/UserAuthentication"})
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class UserAuthenticationController {
 
     private final UserAuthenticationServiceImpl userAuthenticationService;
